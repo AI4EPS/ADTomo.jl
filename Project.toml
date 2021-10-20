@@ -1,0 +1,19 @@
+name = "ADEikonal"
+uuid = "19e747a5-ce5d-4328-bb0b-c35ca2971bd0"
+authors = ["Kailai Xu <kailaix@hotmail.com>", "Weiqiang Zhu <zhuwq@stanford.edu>"]
+version = "0.1.0"
+
+[deps]
+ADCME = "07b341a0-ce75-57c6-b2de-414ffdc00be5"
+Optim = "429524aa-4258-5aef-a3af-852621145aeb"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+PyCall = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
+PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
+Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+
+[compat]
+ADCME = "0.6,0.7"
+PyCall = "1"
+PyPlot = "2"
+Revise = "2,3"
+julia = "1"
