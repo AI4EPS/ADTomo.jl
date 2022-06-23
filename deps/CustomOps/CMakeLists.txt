@@ -51,20 +51,12 @@ endif()
 include_directories(${TF_INC} ${PREFIXDIR} ${CUDA_INC})
 link_directories(${LIBDIR})
 
-find_program(_nvidia_smi "nvidia-smi")
-if (_nvidia_smi)
-  find_package(CUDA QUIET REQUIRED)
-  SET(CUDA_NVCC_FLAGS "-std=c++11" "-O3" ${CUDA_NVCC_FLAGS};--expt-relaxed-constexpr)
-  add_definitions(-DGOOGLE_CUDA)
-  cuda_add_library(ADEikonal SHARED 
-        Eikonal/Eikonal.cpp
-        )
-else()
-  add_library(ADEikonal SHARED 
-        Eikonal/Eikonal.cpp
-        )
-  add_definitions(-DNOGPU)
-endif()
+add_library(ADEikonal SHARED 
+      Eikonal/Eikonal.cpp
+      Eikonal3D/Eikonal3D.cpp
+      Eikonal3D/EikonalThreeD.cpp
+      )
+add_definitions(-DNOGPU)
 
 find_package(OpenMP)
 if(OpenMP_CXX_FOUND)

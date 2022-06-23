@@ -1,26 +1,11 @@
 using ADCME
+using ADEikonal
 using PyCall
 using LinearAlgebra
 using PyPlot
 using Random
 Random.seed!(233)
 
-using ADCME
-using PyCall
-using LinearAlgebra
-using PyPlot
-using Random
-Random.seed!(233)
-
-function eikonal_three_d(u0,f,h,m,n,l,tol,verbose)
-    eikonal_three_d_ = load_op_and_grad("../deps/CustomOps/CustomOp/build/libEikonalThreeD","eikonal_three_d")
-    u0,f,h,m,n,l,tol,verbose = convert_to_tensor(Any[u0,f,h,m,n,l,tol,verbose], [Float64,Float64,Float64,Int64,Int64,Int64,Float64,Bool])
-    u0 = tf.reshape(u0, (-1,))
-    f = tf.reshape(f, (-1,))
-    out = eikonal_three_d_(u0,f,h,m,n,l,tol,verbose)
-    print(out)
-    return tf.reshape(out, (m, n, l))
-end
 
 reset_default_graph()
 #include("eikonal_op.jl")
@@ -38,13 +23,13 @@ u0[10, 10, 10] = 0
 
 h = 5
 
-u = eikonal_three_d(u0,f,h,m,n,l,1e-6,false)
+u = eikonal3d(u0,f,h,m,n,l,1e-6,false)
 
 sess = Session()
 uobs = run(sess, u)
 
 fvar = Variable(ones(m, n, l))
-uvar = eikonal_three_d(u0,fvar,h,m,n,l,1e-6,false)
+uvar = eikonal3d(u0,fvar,h,m,n,l,1e-6,false)
 
 loss = sum((u-uvar)^2)
 

@@ -44,14 +44,6 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 
 include_directories(${TF_INC} ${PREFIXDIR} ${CUDA_INC})
 
-# --- Find AMGCL ------------------------------------------------------------
-include_directories(../../eigen)
-include_directories(/usr/local/include)
-# target_compile_options(eigen_target INTERFACE
-#     $<$<CXX_COMPILER_ID:GNU>:-Wno-int-in-bool-context>
-#     $<$<CXX_COMPILER_ID:GNU>:-Wno-maybe-uninitialized>
-#     $<$<CXX_COMPILER_ID:Clang>:-Wno-c++11-long-long>
-#     )
 find_package(OpenMP)
 if (OPENMP_FOUND)
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
