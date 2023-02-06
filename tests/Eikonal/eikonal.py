@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import itertools
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -20,28 +21,28 @@ def calculate_unique_solution(a, b, f, h):
 
 
 def sweeping_over_I_J_K(u, I, J, f, h):
-    # print("Sweeping start...")
+
     m = len(I)
     n = len(J)
-    for i in I:
-        for j in J:
-            if i == 0:
-                uxmin = u[i + 1, j]
-            elif i == m - 1:
-                uxmin = u[i - 1, j]
-            else:
-                uxmin = np.min([u[i - 1, j], u[i + 1, j]])
+    
+    for (i,j) in itertools.product(I, J):
+        if i == 0:
+            uxmin = u[i + 1, j]
+        elif i == m - 1:
+            uxmin = u[i - 1, j]
+        else:
+            uxmin = np.min([u[i - 1, j], u[i + 1, j]])
 
-            if j == 0:
-                uymin = u[i, j + 1]
-            elif j == n - 1:
-                uymin = u[i, j - 1]
-            else:
-                uymin = np.min([u[i, j - 1], u[i, j + 1]])
+        if j == 0:
+            uymin = u[i, j + 1]
+        elif j == n - 1:
+            uymin = u[i, j - 1]
+        else:
+            uymin = np.min([u[i, j - 1], u[i, j + 1]])
 
-            u_new = calculate_unique_solution(uxmin, uymin, f[i, j], h)
+        u_new = calculate_unique_solution(uxmin, uymin, f[i, j], h)
 
-            u[i, j] = np.min([u_new, u[i, j]])
+        u[i, j] = np.min([u_new, u[i, j]])
 
     return u
 
@@ -77,6 +78,7 @@ def eikonal_solve(u, f, h):
 
     return u
 
+############################################################################################################
 
 def normalize(vars_, bounds):
     mean = torch.tensor(
@@ -124,8 +126,9 @@ def traveltime(vars_, station_locs, phase_type, up, us, rgrid, zgrid, sigma=1, b
         / (2.0 * np.pi * sigma)
         * torch.exp(-(((rgrid - r) / (np.sqrt(2 * sigma) * h)) ** 2 + ((zgrid - z) / (np.sqrt(2 * sigma) * h)) ** 2))
     )
-    tp = torch.sum(up * magn, dim=(-1, -2))
-    ts = torch.sum(us * magn, dim=(-1, -2))
+    sum_magn = torch.sum(magn, dim=(-1, -2))
+    tp = torch.sum(up * magn, dim=(-1, -2)) / sum_magn
+    ts = torch.sum(us * magn, dim=(-1, -2)) / sum_magn
 
     tt = torch.cat([tp, ts], dim=0)
 
@@ -155,8 +158,8 @@ def invert_location(
     us = torch.tensor(us, dtype=torch.float32)
 
     p_index = None
-    # optimizer = optim.LBFGS(params=[t0_, loc_], max_iter=1000, line_search_fn="strong_wolfe")
-    optimizer = optim.LBFGS(params=[loc_], max_iter=1000, line_search_fn="strong_wolfe")
+    optimizer = optim.LBFGS(params=[t0_, loc_], max_iter=1000, line_search_fn="strong_wolfe")
+    # optimizer = optim.LBFGS(params=[loc_], max_iter=1000, line_search_fn="strong_wolfe")
 
     def closure():
         optimizer.zero_grad()
@@ -188,8 +191,8 @@ if __name__ == "__main__":
 
     rlim = [0, ((xlim[1] - xlim[0]) ** 2 + (ylim[1] - ylim[0]) ** 2) ** 0.5]
 
-    rx = np.arange(rlim[0], rlim[1] + h, h)
-    zx = np.arange(zlim[0], zlim[1] + h, h)
+    rx = np.linspace(rlim[0], rlim[1], round((rlim[1]-rlim[0])/h))
+    zx = np.linspace(zlim[0], zlim[1], round((zlim[1]-zlim[0])/h))
     m = len(rx)
     n = len(zx)
     dr = h
@@ -211,35 +214,35 @@ if __name__ == "__main__":
     up_true = np.sqrt((rgrid - 0) ** 2 + (zgrid - 0) ** 2) / np.mean(vp)
     us_true = np.sqrt((rgrid - 0) ** 2 + (zgrid - 0) ** 2) / np.mean(vs)
 
-    fig, axes = plt.subplots(2, 1, figsize=(16, 16 * n / m * 2))
-    im0 = axes[0].pcolormesh(rx, zx, up.T)
-    axes[0].axis("scaled")
-    axes[0].invert_yaxis()
+    fig, axes = plt.subplots(2, 1, squeeze=False, figsize=(16, 16 * n / m * 2))
+    im0 = axes[0,0].pcolormesh(rx, zx, up.T)
+    axes[0,0].axis("scaled")
+    axes[0,0].invert_yaxis()
     fig.colorbar(im0, ax=axes[0])
 
-    im1 = axes[1].pcolormesh(rx, zx, (up - up_true).T, vmax=up.max(), vmin=up.min())
-    axes[1].axis("scaled")
-    axes[1].invert_yaxis()
+    im1 = axes[1,0].pcolormesh(rx, zx, (up - up_true).T, vmax=up.max(), vmin=up.min())
+    axes[1,0].axis("scaled")
+    axes[1,0].invert_yaxis()
     fig.colorbar(im1, ax=axes[1])
 
     fig.savefig("test_vp.png")
 
-    fig, axes = plt.subplots(2, 1, figsize=(16, 16 * n / m * 2))
-    im0 = axes[0].pcolormesh(rx, zx, us.T)
-    axes[0].axis("scaled")
-    axes[0].invert_yaxis()
+    fig, axes = plt.subplots(2, 1, squeeze=False, figsize=(16, 16 * n / m * 2))
+    im0 = axes[0,0].pcolormesh(rx, zx, us.T)
+    axes[0,0].axis("scaled")
+    axes[0,0].invert_yaxis()
     fig.colorbar(im0, ax=axes[0])
 
-    im1 = axes[1].pcolormesh(rx, zx, (us - us_true).T, vmax=up.max(), vmin=up.min())
-    axes[1].axis("scaled")
-    axes[1].invert_yaxis()
+    im1 = axes[1,0].pcolormesh(rx, zx, (us - us_true).T, vmax=up.max(), vmin=up.min())
+    axes[1,0].axis("scaled")
+    axes[1,0].invert_yaxis()
     fig.colorbar(im1, ax=axes[1])
 
     fig.savefig("test_vs.png")
 
     ############################# Check traveltime extraction ###################################
     sigma = 0.8
-    event_locs = np.array([[15, 15, 18]])  # (1, 3)
+    event_locs = np.array([[15, 15, 10]])  # (1, 3)
     # station_locs = np.array([[10, 10, 0], [20, 10, 0], [10, 20, 0], [20, 20, 0]])  # (nsta, 3)
     station_locs = np.array([[10, 10, 0], [20, 10, 0], [10, 20, 0], [20, 20, 0]])  # (nsta, 3)
     r = np.sqrt(np.sum((event_locs[0, :2] - station_locs[:, :2]) ** 2, axis=-1))  # (nsta, 3)
@@ -250,6 +253,7 @@ if __name__ == "__main__":
     r = r[:, np.newaxis, np.newaxis]
     z = z[:, np.newaxis, np.newaxis]
     rgrid, zgrid = np.meshgrid(rx, zx, indexing="ij")
+    print(f"{rgrid.shape = }")
 
     magn = (
         1.0
@@ -257,8 +261,16 @@ if __name__ == "__main__":
         * np.exp(-(((rgrid - r) / (np.sqrt(2 * sigma) * h)) ** 2 + ((zgrid - z) / (np.sqrt(2 * sigma) * h)) ** 2))
     )
 
-    tp = np.sum(up * magn, axis=(-1, -2))
-    ts = np.sum(us * magn, axis=(-1, -2))
+    print(f"{magn.shape = }")
+    magn_sum = np.sum(magn, axis=(-1, -2))
+    print(f"{magn_sum.shape = }")
+    print(f"{up.shape = }")
+    print(f"{magn.shape = }")
+    tp = np.sum(up * magn, axis=(-1, -2)) / magn_sum
+    ts = np.sum(us * magn, axis=(-1, -2)) / magn_sum
+    print(f"{(up * magn).shape = }")
+    print(f"{np.sum(up * magn, axis=(-1, -2)).shape = }")
+    print(f"{tp.shape = }")
 
     # print(up.shape, magn.shape)
 
@@ -277,7 +289,7 @@ if __name__ == "__main__":
     phase_type = ["P"] * len(tp) + ["S"] * len(ts)
     station_locs = np.concatenate([station_locs, station_locs])
     bounds = [[0, 30], [0, 30], [0, 20]]
-    event_t0 = np.array([[0.0]])
+    event_t0 = np.array([[10.0]])
     event_locs = np.array(
         [
             [
@@ -289,7 +301,6 @@ if __name__ == "__main__":
     )
     # event_locs = np.array([[15, 15, 18]])
     # bounds = None
-    print(event_t0.shape, event_locs.shape, data.shape)
     invert_location(
         data, event_t0, event_locs, station_locs, phase_type, weight, up, us, rgrid, zgrid, sigma=0.6, bounds=bounds
     )
