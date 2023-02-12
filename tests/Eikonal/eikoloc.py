@@ -8,6 +8,11 @@ import torch.nn.functional as F
 import torch.optim as optim
 from tqdm import tqdm
 import os
+import multiprocessing as mp
+from multiprocessing import Process, Manager, Pool
+from functools import partial
+import multiprocessing
+multiprocessing.set_start_method('spawn', True)
 
 ############################################################################################################
 # |\nabla u| = f
@@ -105,7 +110,7 @@ def traveltime(event_loc, station_locs, time_table, rgrid, zgrid, h, sigma=1, bo
     return tt
 
 # %%
-def invert(time, type, loc, up, us, rgrid, zgrid, h, t0=[0], loc0=[0,0,0], devide="cpu", **kwargs):
+def invert(time, loc, type, weight, up, us, rgrid, zgrid, h, t0=[0], loc0=[0,0,0], device="cpu"):
 
     loc0 = torch.tensor(loc0, dtype=torch.float32, requires_grad=True, device=device)
     t0 = torch.tensor(t0, dtype=torch.float32, requires_grad=True, device=device)
@@ -116,17 +121,27 @@ def invert(time, type, loc, up, us, rgrid, zgrid, h, t0=[0], loc0=[0,0,0], devid
     time_s = time[s_index]
     loc_p = loc[p_index]
     loc_s = loc[s_index]
-
+    weight_p = weight[p_index]
+    weight_s = weight[s_index]
 
     # %% optimization
     optimizer = optim.LBFGS(params=[t0, loc0], max_iter=1000, line_search_fn="strong_wolfe")
 
     def closure():
         optimizer.zero_grad()
-        tt_p = t0 + traveltime(loc0, loc_p, up, rgrid, zgrid, h, sigma=1)
-        tt_s = t0 + traveltime(loc0, loc_s, us, rgrid, zgrid, h, sigma=1)
-        # loss = F.mse_loss(data, tt)
-        loss = F.huber_loss(time_p, tt_p) + F.huber_loss(time_s, tt_s)
+        if len(p_index) > 0: 
+            tt_p = t0 + traveltime(loc0, loc_p, up, rgrid, zgrid, h, sigma=1)
+            loss_p = torch.mean(F.huber_loss(time_p, tt_p, reduction="none") * weight_p)
+            # loss_p = F.mse_loss(time_p, tt_p)
+        else:
+            loss_p = 0
+        if len(s_index) > 0:
+            tt_s = t0 + traveltime(loc0, loc_s, us, rgrid, zgrid, h, sigma=1)
+            loss_s = torch.mean(F.huber_loss(time_s, tt_s, reduction="none") * weight_s)
+            # loss_s = F.mse_loss(time_s, tt_s)
+        else:
+            loss_s = 0
+        loss = loss_p + loss_s
         loss.backward(retain_graph=True)
         return loss
 
@@ -135,11 +150,39 @@ def invert(time, type, loc, up, us, rgrid, zgrid, h, t0=[0], loc0=[0,0,0], devid
     return t0.detach().cpu(), loc0.detach().cpu()
 
 # %%
+def run(catalog, event_index, picks, center, shift_z, up, us, rgrid, zgrid, h, device):
+    
+    print(f"Event {event_index}")
+
+    if event_index == -1:
+        return
+
+    picks_ = picks
+    
+    # %%
+    picks_tmin = picks_["timestamp"].min()
+    picks_tt = (picks_["timestamp"] - picks_tmin).dt.total_seconds()
+    picks_time = torch.tensor(picks_tt.values, dtype=torch.float32).to(device)
+    picks_loc = torch.tensor(picks_[["x_km", "y_km", "z_km"]].values, dtype=torch.float32).to(device)
+    picks_type = picks_["type"].values
+    picks_weight = torch.tensor(picks_["prob"].values, dtype=torch.float32).to(device)
+
+    # %%
+    event_t0, event_loc0 = invert(picks_time, picks_loc, picks_type, picks_weight, up, us, rgrid, zgrid, h, device=device)
+    origin_time = picks_tmin + pd.to_timedelta(event_t0.item(), unit="s")
+    longitude = event_loc0[0].item()/111.2 + center[0]
+    latitude = event_loc0[1].item()/ 111.2 + center[1]
+    depth = - event_loc0[2].item() + shift_z
+
+    catalog.append({"event_index": event_index, "time": origin_time, "latitude": latitude, "longitude": longitude, "depth_km": depth})
+
+
+# %%
 
 if __name__ == "__main__":
 
     ## 
-    device = "cuda:0"
+    # device = "cuda"
     device = "cpu"
 
 
@@ -194,33 +237,61 @@ if __name__ == "__main__":
     picks["y_km"] = (picks["latitude"] - center[1]) * 111.2
     picks["z_km"] = - picks["elevation(m)"] / 1000 + shift_z
     
-    catalog = []
-    num = 0
-    for event_index in tqdm(picks["event_idx"].unique()):
-        if event_index == -1:
-            continue
+    # %% sequential inversion
+    # catalog = []
+    # num = 0
+    # for event_index in tqdm(list(picks["event_idx"].unique())):
+    #     if event_index == -1:
+    #         continue
 
-        picks_ = picks[picks["event_idx"] == event_index]
+    #     picks_ = picks[picks["event_idx"] == event_index]
         
-        # %%
-        picks_tmin = picks_["timestamp"].min()
-        picks_tt = (picks_["timestamp"] - picks_tmin).dt.total_seconds()
-        picks_time = torch.tensor(picks_tt.values, dtype=torch.float32).to(device)
-        picks_loc = torch.tensor(picks_[["x_km", "y_km", "z_km"]].values, dtype=torch.float32).to(device)
-        picks_type = picks_["type"].values
+    #     # %%
+    #     picks_tmin = picks_["timestamp"].min()
+    #     picks_tt = (picks_["timestamp"] - picks_tmin).dt.total_seconds()
+    #     picks_time = torch.tensor(picks_tt.values, dtype=torch.float32).to(device)
+    #     picks_loc = torch.tensor(picks_[["x_km", "y_km", "z_km"]].values, dtype=torch.float32).to(device)
+    #     picks_type = picks_["type"].values
+    #     picks_weight = torch.tensor(picks_["prob"].values, dtype=torch.float32).to(device)
 
-        # %%
-        event_t0, event_loc0 = invert(picks_time, picks_type, picks_loc, up, us, rgrid, zgrid, h, device=device)
-        origin_time = picks_tmin + pd.to_timedelta(event_t0.item(), unit="s")
-        longitude = event_loc0[0].item()/111.2 + center[0]
-        latitude = event_loc0[1].item()/ 111.2 + center[1]
-        depth = - event_loc0[2].item() + shift_z
+    #     # %%
+    #     event_t0, event_loc0 = invert(picks_time, picks_loc, picks_type, picks_weight, up, us, rgrid, zgrid, h, device=device)
+    #     origin_time = picks_tmin + pd.to_timedelta(event_t0.item(), unit="s")
+    #     longitude = event_loc0[0].item()/111.2 + center[0]
+    #     latitude = event_loc0[1].item()/ 111.2 + center[1]
+    #     depth = - event_loc0[2].item() + shift_z
 
-        catalog.append({"event_index": event_index, "time": origin_time, "latitude": latitude, "longitude": longitude, "depth_km": depth})
+    #     catalog.append({"event_index": event_index, "time": origin_time, "latitude": latitude, "longitude": longitude, "depth_km": depth})
 
-        num += 1
-        if num > 20:
-            break
+    #     num += 1
+    #     #if num > 20:
+    #     #    break
+
+
+    # %% parallel inversion
+    mangaer = mp.Manager()
+    catalog = mangaer.list()
+    num_cpu = mp.cpu_count() // 4
+    # num_cpu = 2
+    print("num_cpu", num_cpu)
+    proc = []
+
+    with mp.Pool(num_cpu) as pool:
+        pool.starmap(run, [(catalog, event_index, picks[picks["event_idx"] == event_index], center, shift_z, up, us, rgrid, zgrid, h, device) for event_index in list(picks["event_idx"].unique())])
+
+    # num_cpu = 1
+    # for event_index in tqdm(list(picks["event_idx"].unique())):
+    #     picks_ = picks[picks["event_idx"] == event_index]
+    #     p = mp.Process(target=run, args=(catalog, event_index, picks_, center, shift_z, up, us, rgrid, zgrid, h, device))
+    #     p.start()
+    #     proc.append(p)
+    #     if len(proc) == num_cpu:
+    #         for p in proc:
+    #             p.join()
+    #         proc = []
+    # for p in proc:
+    #     p.join()
+
     # %%
 
     catalog = pd.DataFrame(catalog)
