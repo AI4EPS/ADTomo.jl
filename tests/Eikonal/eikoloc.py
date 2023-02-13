@@ -182,7 +182,7 @@ def run(catalog, event_index, picks, center, shift_z, up, us, rgrid, zgrid, h, d
         picks_time, picks_loc, picks_type, picks_weight, up, us, rgrid, zgrid, h, device=device
     )
     origin_time = picks_tmin + pd.to_timedelta(event_t0.item(), unit="s")
-    longitude = event_loc0[0].item() / 111.2 + center[0]
+    longitude = event_loc0[0].item() / 111.2 / np.cos(np.deg2rad(center[1])) + center[0]
     latitude = event_loc0[1].item() / 111.2 + center[1]
     depth = -event_loc0[2].item() + shift_z
 
