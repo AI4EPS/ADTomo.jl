@@ -13,6 +13,7 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 from tqdm import tqdm
+from dataclasses import dataclass
 
 multiprocessing.set_start_method("spawn", True)
 
@@ -114,7 +115,7 @@ def traveltime(event_loc, station_locs, time_table, rgrid, zgrid, h, sigma=1, bo
 
 
 # %%
-def invert(time, loc, type, weight, up, us, rgrid, zgrid, h, t0=[0], loc0=[0, 0, 0], device="cpu"):
+def invert(time, loc, type, weight, up, us, rgrid, zgrid, h, t0=[0], loc0=[0, 0, 0], device="cpu", add_eqt=False, gamma=0.1):
 
     # device = up.device
     loc0 = torch.tensor(loc0, dtype=torch.float32, requires_grad=True, device=device)
@@ -122,8 +123,8 @@ def invert(time, loc, type, weight, up, us, rgrid, zgrid, h, t0=[0], loc0=[0, 0,
 
     p_index = torch.arange(len(type), device=device)[type == "p"]
     s_index = torch.arange(len(type), device=device)[type == "s"]
-    time_p = time[p_index]
-    time_s = time[s_index]
+    obs_p = time[p_index]
+    obs_s = time[s_index]
     loc_p = loc[p_index]
     loc_s = loc[s_index]
     weight_p = weight[p_index]
@@ -135,14 +136,24 @@ def invert(time, loc, type, weight, up, us, rgrid, zgrid, h, t0=[0], loc0=[0, 0,
     def closure():
         optimizer.zero_grad()
         if len(p_index) > 0:
-            tt_p = t0 + traveltime(loc0, loc_p, up, rgrid, zgrid, h, sigma=1)
-            loss_p = torch.mean(F.huber_loss(time_p, tt_p, reduction="none") * weight_p)
+            tt_p = traveltime(loc0, loc_p, up, rgrid, zgrid, h, sigma=1)
+            pred_p = t0 + tt_p 
+            loss_p = torch.mean(F.huber_loss(obs_p, pred_p, reduction="none") * weight_p)
+            if add_eqt:
+                dd_tt_p = (tt_p.unsqueeze(-1) - tt_p.unsqueeze(-2)) 
+                dd_time_p = (obs_p.unsqueeze(-1) - obs_p.unsqueeze(-2))
+                loss_p += gamma * torch.mean(F.huber_loss(dd_tt_p, dd_time_p, reduction="none") * weight_p.unsqueeze(-1) * weight_p.unsqueeze(-2))
             # loss_p = F.mse_loss(time_p, tt_p)
         else:
             loss_p = 0
         if len(s_index) > 0:
-            tt_s = t0 + traveltime(loc0, loc_s, us, rgrid, zgrid, h, sigma=1)
-            loss_s = torch.mean(F.huber_loss(time_s, tt_s, reduction="none") * weight_s)
+            tt_s = traveltime(loc0, loc_s, us, rgrid, zgrid, h, sigma=1)
+            pred_s = t0 + tt_s
+            loss_s = torch.mean(F.huber_loss(obs_s, pred_s, reduction="none") * weight_s)
+            if add_eqt:
+                dd_tt_s = (tt_s.unsqueeze(-1) - tt_s.unsqueeze(-2)) 
+                dd_time_s = (obs_s.unsqueeze(-1) - obs_s.unsqueeze(-2))
+                loss_s += gamma * torch.mean(F.huber_loss(dd_tt_s, dd_time_s, reduction="none") * weight_s.unsqueeze(-1) * weight_s.unsqueeze(-2))
             # loss_s = F.mse_loss(time_s, tt_s)
         else:
             loss_s = 0
@@ -156,7 +167,7 @@ def invert(time, loc, type, weight, up, us, rgrid, zgrid, h, t0=[0], loc0=[0, 0,
 
 
 # %%
-def run(catalog, event_index, picks, center, shift_z, up, us, rgrid, zgrid, h, device):
+def run(catalog, event_index, picks, center, shift_z, up, us, rgrid, zgrid, h, device, add_eqt=False, gamma=0.1):
 
     if event_index == -1:
         return
@@ -179,7 +190,7 @@ def run(catalog, event_index, picks, center, shift_z, up, us, rgrid, zgrid, h, d
 
     # %%
     event_t0, event_loc0 = invert(
-        picks_time, picks_loc, picks_type, picks_weight, up, us, rgrid, zgrid, h, device=device
+        picks_time, picks_loc, picks_type, picks_weight, up, us, rgrid, zgrid, h, device=device, add_eqt=add_eqt, gamma=gamma
     )
     origin_time = picks_tmin + pd.to_timedelta(event_t0.item(), unit="s")
     longitude = event_loc0[0].item() / 111.2 / np.cos(np.deg2rad(center[1])) + center[0]
@@ -204,23 +215,26 @@ def run(catalog, event_index, picks, center, shift_z, up, us, rgrid, zgrid, h, d
 if __name__ == "__main__":
 
     ##
-    device = "cuda"
-    # device = "cpu"
+    @dataclass
+    class ArgParser:
+        device: str = "cuda"
+        add_eqt: bool = True
+        gamma: float = 1.0
+    args = ArgParser()
 
     # %% Set domain
     xlim = [0, 100]
     ylim = [0, 100]
     zlim = [0, 30]  ## depth
     h = 1.0
+    edge_grids = 3
 
     rlim = [0, ((xlim[1] - xlim[0]) ** 2 + (ylim[1] - ylim[0]) ** 2) ** 0.5]
 
-    rgrid = np.linspace(rlim[0], rlim[1], round((rlim[1] - rlim[0]) / h))
-    zgrid = np.linspace(zlim[0], zlim[1], round((zlim[1] - zlim[0]) / h))
+    rgrid = np.arange(rlim[0]-edge_grids*h, rlim[1], h)
+    zgrid = np.arange(zlim[0]-edge_grids*h, zlim[1], h)
     m = len(rgrid)
     n = len(zgrid)
-    dr = h
-    dz = h
 
     # %% Calculate traveltime table
     x = [0, 5.5, 5.5, 16.0, 16.0, 32.0, 32.0]
@@ -239,11 +253,11 @@ if __name__ == "__main__":
     vs = np.ones((m, n)) * vs1d
 
     up = 1000 * np.ones((m, n))
-    up[0, 0] = 0.0
+    up[edge_grids, edge_grids] = 0.0
     up = eikonal_solve(up, vp, h)
 
     us = 1000 * np.ones((m, n))
-    us[0, 0] = 0.0
+    us[edge_grids, edge_grids] = 0.0
     us = eikonal_solve(us, vs, h)
 
     up = torch.tensor(up, dtype=torch.float32)
@@ -324,9 +338,11 @@ if __name__ == "__main__":
                     rgrid,
                     zgrid,
                     h,
-                    device + f":{i%num_gpu}",
+                    args.device + f":{i%num_gpu}",
+                    args.add_eqt,
+                    args.gamma
                 )
-                for i, event_index in enumerate(list(picks["event_idx"].unique()))
+                for i, event_index in enumerate(list(picks["event_idx"].unique())[:1000])
             ],
         )
 
@@ -339,28 +355,34 @@ if __name__ == "__main__":
     catalog_gamma["depth_km"] = catalog_gamma["depth(m)"] / 1000
 
     fig, ax = plt.subplots(3, 2, squeeze=False, figsize=(10, 8), gridspec_kw={"height_ratios": [4, 1, 1]})
-    s = 0.1
+    s = 0.05
+    alpha = 0.5
     ax[0, 1].scatter(
         catalog_gamma["longitude"],
         catalog_gamma["latitude"],
         c=catalog_gamma["depth_km"],
         s=s,
+        alpha=alpha,
     )
     ax[1, 1].scatter(
         catalog_gamma["longitude"],
         -catalog_gamma["depth_km"],
         c=catalog_gamma["depth_km"],
         s=s,
+        alpha=alpha,
     )
     ax[2, 1].scatter(
         catalog_gamma["latitude"],
         -catalog_gamma["depth_km"],
         c=catalog_gamma["depth_km"],
         s=s,
+        alpha=alpha,
     )
     xlim = ax[0, 1].get_xlim()
     ylim = ax[0, 1].get_ylim()
     zlim = ax[1, 1].get_ylim()
+    vmin = catalog_gamma["depth_km"].min()
+    vmax = catalog_gamma["depth_km"].max()
     ax[1, 1].set_xlim(xlim)
     ax[2, 1].set_xlim(ylim)
     ax[0, 0].scatter(
@@ -368,18 +390,27 @@ if __name__ == "__main__":
         catalog["latitude"],
         c=catalog["depth_km"],
         s=s,
+        alpha=alpha,
+        vmin=vmin,
+        vmax=vmax,
     )
     ax[1, 0].scatter(
         catalog["longitude"],
         -catalog["depth_km"],
         c=catalog["depth_km"],
         s=s,
+        alpha=alpha,
+        vmin=vmin,
+        vmax=vmax,
     )
     ax[2, 0].scatter(
         catalog["latitude"],
         -catalog["depth_km"],
         c=catalog["depth_km"],
         s=s,
+        alpha=alpha,
+        vmin=vmin,
+        vmax=vmax,
     )
     ax[0, 0].set_xlim(xlim)
     ax[0, 0].set_ylim(ylim)
@@ -388,8 +419,5 @@ if __name__ == "__main__":
     ax[2, 0].set_xlim(ylim)
     ax[2, 0].set_ylim(zlim)
     plt.savefig("location.png", dpi=300)
-
-    raise
-
 
 # %%
