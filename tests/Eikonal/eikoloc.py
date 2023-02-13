@@ -112,6 +112,7 @@ def traveltime(event_loc, station_locs, time_table, rgrid, zgrid, h, sigma=1, bo
 # %%
 def invert(time, loc, type, weight, up, us, rgrid, zgrid, h, t0=[0], loc0=[0,0,0], device="cpu"):
 
+    # device = up.device
     loc0 = torch.tensor(loc0, dtype=torch.float32, requires_grad=True, device=device)
     t0 = torch.tensor(t0, dtype=torch.float32, requires_grad=True, device=device)
 
@@ -152,8 +153,6 @@ def invert(time, loc, type, weight, up, us, rgrid, zgrid, h, t0=[0], loc0=[0,0,0
 # %%
 def run(catalog, event_index, picks, center, shift_z, up, us, rgrid, zgrid, h, device):
     
-    print(f"Event {event_index}")
-
     if event_index == -1:
         return
 
@@ -168,6 +167,12 @@ def run(catalog, event_index, picks, center, shift_z, up, us, rgrid, zgrid, h, d
     picks_weight = torch.tensor(picks_["prob"].values, dtype=torch.float32).to(device)
 
     # %%
+    up = up.to(device)
+    us = us.to(device)
+    rgrid = rgrid.to(device)
+    zgrid = zgrid.to(device)
+
+    # %%
     event_t0, event_loc0 = invert(picks_time, picks_loc, picks_type, picks_weight, up, us, rgrid, zgrid, h, device=device)
     origin_time = picks_tmin + pd.to_timedelta(event_t0.item(), unit="s")
     longitude = event_loc0[0].item()/111.2 + center[0]
@@ -175,15 +180,16 @@ def run(catalog, event_index, picks, center, shift_z, up, us, rgrid, zgrid, h, d
     depth = - event_loc0[2].item() + shift_z
 
     catalog.append({"event_index": event_index, "time": origin_time, "latitude": latitude, "longitude": longitude, "depth_km": depth})
-
+    if len(catalog) % 100 == 0:
+        print(f"{len(catalog)} events are inverted.")
 
 # %%
 
 if __name__ == "__main__":
 
     ## 
-    # device = "cuda"
-    device = "cpu"
+    device = "cuda"
+    # device = "cpu"
 
 
     # %% Set domain
@@ -202,8 +208,20 @@ if __name__ == "__main__":
     dz = h
 
     # %% Calculate traveltime table
-    vp = np.ones((m, n)) * 6.0
-    vs = np.ones((m, n)) * (6.0 / 1.75)
+    x =  [0,   5.5, 5.5, 16.0, 16.0, 32.0, 32.0]
+    vp = [5.5, 5.5, 6.3,  6.3, 6.7,  6.7, 7.8]
+    vp1d = np.interp(zgrid, x, vp)
+    vs1d = vp1d / 1.73
+    plt.figure()
+    plt.plot(x, vp, "o")
+    plt.plot(zgrid, vp1d)
+    plt.plot(zgrid, vs1d)
+    plt.savefig("velocity_model.png")
+
+    # %%
+
+    vp = np.ones((m, n)) * vp1d
+    vs = np.ones((m, n)) * vs1d
 
     up = 1000 * np.ones((m, n))
     up[0, 0] = 0.0
@@ -213,27 +231,28 @@ if __name__ == "__main__":
     us[0, 0] = 0.0
     us = eikonal_solve(us, vs, h)
 
-    up = torch.tensor(up, dtype=torch.float32).to(device)
-    us = torch.tensor(us, dtype=torch.float32).to(device)
-    rgrid = torch.tensor(rgrid, dtype=torch.float32).to(device)
-    zgrid = torch.tensor(zgrid, dtype=torch.float32).to(device)
+    up = torch.tensor(up, dtype=torch.float32)
+    us = torch.tensor(us, dtype=torch.float32)
+    rgrid = torch.tensor(rgrid, dtype=torch.float32)
+    zgrid = torch.tensor(zgrid, dtype=torch.float32)
     rgrid, zgrid = torch.meshgrid(rgrid, zgrid, indexing="ij")
 
     # %% Read picks and stations
-    os.system("curl -O -J -L https://osf.io/945dq/download")
-    os.system("curl -O -J -L https://osf.io/gwxtn/download")
-    os.system("curl -O -J -L https://osf.io/km97w/download")
+    # os.system("curl -O -J -L https://osf.io/945dq/download")
+    # os.system("curl -O -J -L https://osf.io/gwxtn/download")
+    # os.system("curl -O -J -L https://osf.io/km97w/download")
 
     picks = pd.read_csv("picks_gamma.csv", sep="\t", parse_dates=["timestamp"])
     stations = pd.read_csv("stations.csv", sep="\t")
     stations["id"] = stations["station"]
     picks  = picks.merge(stations, on="id")
+   
     
     # %% Prepare input data
 
     center = [stations["longitude"].mean(), stations["latitude"].mean(), 0]
     shift_z = picks["elevation(m)"].max() / 1000
-    picks["x_km"] = (picks["longitude"] - center[0]) * 111.2
+    picks["x_km"] = (picks["longitude"] - center[0]) * 111.2 * np.cos(np.deg2rad(center[1]))
     picks["y_km"] = (picks["latitude"] - center[1]) * 111.2
     picks["z_km"] = - picks["elevation(m)"] / 1000 + shift_z
     
@@ -249,10 +268,10 @@ if __name__ == "__main__":
     #     # %%
     #     picks_tmin = picks_["timestamp"].min()
     #     picks_tt = (picks_["timestamp"] - picks_tmin).dt.total_seconds()
-    #     picks_time = torch.tensor(picks_tt.values, dtype=torch.float32).to(device)
-    #     picks_loc = torch.tensor(picks_[["x_km", "y_km", "z_km"]].values, dtype=torch.float32).to(device)
+    #     picks_time = torch.tensor(picks_tt.values, dtype=torch.float32)
+    #     picks_loc = torch.tensor(picks_[["x_km", "y_km", "z_km"]].values, dtype=torch.float32)
     #     picks_type = picks_["type"].values
-    #     picks_weight = torch.tensor(picks_["prob"].values, dtype=torch.float32).to(device)
+    #     picks_weight = torch.tensor(picks_["prob"].values, dtype=torch.float32)
 
     #     # %%
     #     event_t0, event_loc0 = invert(picks_time, picks_loc, picks_type, picks_weight, up, us, rgrid, zgrid, h, device=device)
@@ -271,35 +290,45 @@ if __name__ == "__main__":
     # %% parallel inversion
     mangaer = mp.Manager()
     catalog = mangaer.list()
-    num_cpu = mp.cpu_count() // 4
-    # num_cpu = 2
+    # num_cpu = mp.cpu_count() // 4
+    num_cpu = 8
+    num_gpu = torch.cuda.device_count()
     print("num_cpu", num_cpu)
-    proc = []
+    print(f"Total number of events: {len(picks['event_idx'].unique())}")
 
     with mp.Pool(num_cpu) as pool:
-        pool.starmap(run, [(catalog, event_index, picks[picks["event_idx"] == event_index], center, shift_z, up, us, rgrid, zgrid, h, device) for event_index in list(picks["event_idx"].unique())])
+        pool.starmap(run, [(catalog, event_index, picks[picks["event_idx"] == event_index], center, shift_z, up, us, rgrid, zgrid, h, device+f":{i%num_gpu}") for i, event_index in enumerate(list(picks["event_idx"].unique()))])
 
-    # num_cpu = 1
-    # for event_index in tqdm(list(picks["event_idx"].unique())):
-    #     picks_ = picks[picks["event_idx"] == event_index]
-    #     p = mp.Process(target=run, args=(catalog, event_index, picks_, center, shift_z, up, us, rgrid, zgrid, h, device))
-    #     p.start()
-    #     proc.append(p)
-    #     if len(proc) == num_cpu:
-    #         for p in proc:
-    #             p.join()
-    #         proc = []
-    # for p in proc:
-    #     p.join()
+    catalog = pd.DataFrame(list(catalog))
+    catalog.to_csv("catalog.csv", index=False)
 
     # %%
+    catalog = pd.read_csv("catalog.csv", parse_dates=["time"])
+    catalog_gamma = pd.read_csv("catalog_gamma.csv", sep="\t", parse_dates=["time"])
+    catalog_gamma["depth_km"] = catalog_gamma["depth(m)"] / 1000
 
-    catalog = pd.DataFrame(catalog)
-    fig, ax = plt.subplots(3, 1, squeeze=False, figsize=(5, 15))
-    ax[0,0].plot(catalog["longitude"], catalog["latitude"], "x")
-    ax[1,0].plot(catalog["longitude"], catalog["depth_km"], "x")
-    ax[2,0].plot(catalog["latitude"], catalog["depth_km"], "x")
-    plt.savefig("debug_loc.png", dpi=300)
+    fig, ax = plt.subplots(3, 2, squeeze=False, figsize=(10, 8), gridspec_kw={'height_ratios':[4, 1, 1]})
+    s = 0.1
+    ax[0,1].scatter(catalog_gamma["longitude"], catalog_gamma["latitude"], c=catalog_gamma["depth_km"], s=s, )
+    ax[1,1].scatter(catalog_gamma["longitude"], -catalog_gamma["depth_km"], c=catalog_gamma["depth_km"], s=s, )
+    ax[2,1].scatter(catalog_gamma["latitude"], -catalog_gamma["depth_km"], c=catalog_gamma["depth_km"], s=s, )
+    xlim = ax[0,1].get_xlim()
+    ylim = ax[0,1].get_ylim()
+    zlim = ax[1,1].get_ylim()
+    ax[1,1].set_xlim(xlim)
+    ax[2,1].set_xlim(ylim)
+    ax[0,0].scatter(catalog["longitude"], catalog["latitude"], c=catalog["depth_km"], s=s, )
+    ax[1,0].scatter(catalog["longitude"], -catalog["depth_km"], c=catalog["depth_km"], s=s, )
+    ax[2,0].scatter(catalog["latitude"], -catalog["depth_km"], c=catalog["depth_km"], s=s, )
+    ax[0,0].set_xlim(xlim)
+    ax[0,0].set_ylim(ylim)
+    ax[1,0].set_xlim(xlim)
+    ax[1,0].set_ylim(zlim)
+    ax[2,0].set_xlim(ylim)
+    ax[2,0].set_ylim(zlim)
+    plt.savefig("location.png", dpi=300)
 
     raise
 
+
+# %%
