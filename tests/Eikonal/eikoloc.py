@@ -1,18 +1,20 @@
-# %% 
-import matplotlib.pyplot as plt
+# %%
 import itertools
+import multiprocessing
+import multiprocessing as mp
+import os
+from functools import partial
+from multiprocessing import Manager, Pool, Process
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
 from tqdm import tqdm
-import os
-import multiprocessing as mp
-from multiprocessing import Process, Manager, Pool
-from functools import partial
-import multiprocessing
-multiprocessing.set_start_method('spawn', True)
+
+multiprocessing.set_start_method("spawn", True)
 
 ############################################################################################################
 # |\nabla u| = f
@@ -33,8 +35,8 @@ def sweeping_over_I_J_K(u, I, J, f, h):
 
     m = len(I)
     n = len(J)
-    
-    for (i,j) in itertools.product(I, J):
+
+    for (i, j) in itertools.product(I, J):
         if i == 0:
             uxmin = u[i + 1, j]
         elif i == m - 1:
@@ -87,14 +89,15 @@ def eikonal_solve(u, f, h):
 
     return u
 
+
 ############################################################################################################
 
 # %%
 def traveltime(event_loc, station_locs, time_table, rgrid, zgrid, h, sigma=1, bounds=None):
 
     event_loc = event_loc.unsqueeze(0)
-    r = torch.sqrt(torch.sum((event_loc[:,:2] - station_locs[:, :2]) ** 2, dim=-1))
-    z = torch.abs(event_loc[:,2] - station_locs[:, 2])
+    r = torch.sqrt(torch.sum((event_loc[:, :2] - station_locs[:, :2]) ** 2, dim=-1))
+    z = torch.abs(event_loc[:, 2] - station_locs[:, 2])
 
     r = r.unsqueeze(-1).unsqueeze(-1)
     z = z.unsqueeze(-1).unsqueeze(-1)
@@ -109,8 +112,9 @@ def traveltime(event_loc, station_locs, time_table, rgrid, zgrid, h, sigma=1, bo
 
     return tt
 
+
 # %%
-def invert(time, loc, type, weight, up, us, rgrid, zgrid, h, t0=[0], loc0=[0,0,0], device="cpu"):
+def invert(time, loc, type, weight, up, us, rgrid, zgrid, h, t0=[0], loc0=[0, 0, 0], device="cpu"):
 
     # device = up.device
     loc0 = torch.tensor(loc0, dtype=torch.float32, requires_grad=True, device=device)
@@ -130,7 +134,7 @@ def invert(time, loc, type, weight, up, us, rgrid, zgrid, h, t0=[0], loc0=[0,0,0
 
     def closure():
         optimizer.zero_grad()
-        if len(p_index) > 0: 
+        if len(p_index) > 0:
             tt_p = t0 + traveltime(loc0, loc_p, up, rgrid, zgrid, h, sigma=1)
             loss_p = torch.mean(F.huber_loss(time_p, tt_p, reduction="none") * weight_p)
             # loss_p = F.mse_loss(time_p, tt_p)
@@ -150,14 +154,15 @@ def invert(time, loc, type, weight, up, us, rgrid, zgrid, h, t0=[0], loc0=[0,0,0
 
     return t0.detach().cpu(), loc0.detach().cpu()
 
+
 # %%
 def run(catalog, event_index, picks, center, shift_z, up, us, rgrid, zgrid, h, device):
-    
+
     if event_index == -1:
         return
 
     picks_ = picks
-    
+
     # %%
     picks_tmin = picks_["timestamp"].min()
     picks_tt = (picks_["timestamp"] - picks_tmin).dt.total_seconds()
@@ -173,24 +178,34 @@ def run(catalog, event_index, picks, center, shift_z, up, us, rgrid, zgrid, h, d
     zgrid = zgrid.to(device)
 
     # %%
-    event_t0, event_loc0 = invert(picks_time, picks_loc, picks_type, picks_weight, up, us, rgrid, zgrid, h, device=device)
+    event_t0, event_loc0 = invert(
+        picks_time, picks_loc, picks_type, picks_weight, up, us, rgrid, zgrid, h, device=device
+    )
     origin_time = picks_tmin + pd.to_timedelta(event_t0.item(), unit="s")
-    longitude = event_loc0[0].item()/111.2 + center[0]
-    latitude = event_loc0[1].item()/ 111.2 + center[1]
-    depth = - event_loc0[2].item() + shift_z
+    longitude = event_loc0[0].item() / 111.2 + center[0]
+    latitude = event_loc0[1].item() / 111.2 + center[1]
+    depth = -event_loc0[2].item() + shift_z
 
-    catalog.append({"event_index": event_index, "time": origin_time, "latitude": latitude, "longitude": longitude, "depth_km": depth})
+    catalog.append(
+        {
+            "event_index": event_index,
+            "time": origin_time,
+            "latitude": latitude,
+            "longitude": longitude,
+            "depth_km": depth,
+        }
+    )
     if len(catalog) % 100 == 0:
         print(f"{len(catalog)} events are inverted.")
+
 
 # %%
 
 if __name__ == "__main__":
 
-    ## 
+    ##
     device = "cuda"
     # device = "cpu"
-
 
     # %% Set domain
     xlim = [0, 100]
@@ -200,16 +215,16 @@ if __name__ == "__main__":
 
     rlim = [0, ((xlim[1] - xlim[0]) ** 2 + (ylim[1] - ylim[0]) ** 2) ** 0.5]
 
-    rgrid = np.linspace(rlim[0], rlim[1], round((rlim[1]-rlim[0])/h))
-    zgrid = np.linspace(zlim[0], zlim[1], round((zlim[1]-zlim[0])/h))
+    rgrid = np.linspace(rlim[0], rlim[1], round((rlim[1] - rlim[0]) / h))
+    zgrid = np.linspace(zlim[0], zlim[1], round((zlim[1] - zlim[0]) / h))
     m = len(rgrid)
     n = len(zgrid)
     dr = h
     dz = h
 
     # %% Calculate traveltime table
-    x =  [0,   5.5, 5.5, 16.0, 16.0, 32.0, 32.0]
-    vp = [5.5, 5.5, 6.3,  6.3, 6.7,  6.7, 7.8]
+    x = [0, 5.5, 5.5, 16.0, 16.0, 32.0, 32.0]
+    vp = [5.5, 5.5, 6.3, 6.3, 6.7, 6.7, 7.8]
     vp1d = np.interp(zgrid, x, vp)
     vs1d = vp1d / 1.73
     plt.figure()
@@ -245,17 +260,16 @@ if __name__ == "__main__":
     picks = pd.read_csv("picks_gamma.csv", sep="\t", parse_dates=["timestamp"])
     stations = pd.read_csv("stations.csv", sep="\t")
     stations["id"] = stations["station"]
-    picks  = picks.merge(stations, on="id")
-   
-    
+    picks = picks.merge(stations, on="id")
+
     # %% Prepare input data
 
     center = [stations["longitude"].mean(), stations["latitude"].mean(), 0]
     shift_z = picks["elevation(m)"].max() / 1000
     picks["x_km"] = (picks["longitude"] - center[0]) * 111.2 * np.cos(np.deg2rad(center[1]))
     picks["y_km"] = (picks["latitude"] - center[1]) * 111.2
-    picks["z_km"] = - picks["elevation(m)"] / 1000 + shift_z
-    
+    picks["z_km"] = -picks["elevation(m)"] / 1000 + shift_z
+
     # %% sequential inversion
     # catalog = []
     # num = 0
@@ -264,7 +278,7 @@ if __name__ == "__main__":
     #         continue
 
     #     picks_ = picks[picks["event_idx"] == event_index]
-        
+
     #     # %%
     #     picks_tmin = picks_["timestamp"].min()
     #     picks_tt = (picks_["timestamp"] - picks_tmin).dt.total_seconds()
@@ -286,7 +300,6 @@ if __name__ == "__main__":
     #     #if num > 20:
     #     #    break
 
-
     # %% parallel inversion
     mangaer = mp.Manager()
     catalog = mangaer.list()
@@ -297,7 +310,25 @@ if __name__ == "__main__":
     print(f"Total number of events: {len(picks['event_idx'].unique())}")
 
     with mp.Pool(num_cpu) as pool:
-        pool.starmap(run, [(catalog, event_index, picks[picks["event_idx"] == event_index], center, shift_z, up, us, rgrid, zgrid, h, device+f":{i%num_gpu}") for i, event_index in enumerate(list(picks["event_idx"].unique()))])
+        pool.starmap(
+            run,
+            [
+                (
+                    catalog,
+                    event_index,
+                    picks[picks["event_idx"] == event_index],
+                    center,
+                    shift_z,
+                    up,
+                    us,
+                    rgrid,
+                    zgrid,
+                    h,
+                    device + f":{i%num_gpu}",
+                )
+                for i, event_index in enumerate(list(picks["event_idx"].unique()))
+            ],
+        )
 
     catalog = pd.DataFrame(list(catalog))
     catalog.to_csv("catalog.csv", index=False)
@@ -307,25 +338,55 @@ if __name__ == "__main__":
     catalog_gamma = pd.read_csv("catalog_gamma.csv", sep="\t", parse_dates=["time"])
     catalog_gamma["depth_km"] = catalog_gamma["depth(m)"] / 1000
 
-    fig, ax = plt.subplots(3, 2, squeeze=False, figsize=(10, 8), gridspec_kw={'height_ratios':[4, 1, 1]})
+    fig, ax = plt.subplots(3, 2, squeeze=False, figsize=(10, 8), gridspec_kw={"height_ratios": [4, 1, 1]})
     s = 0.1
-    ax[0,1].scatter(catalog_gamma["longitude"], catalog_gamma["latitude"], c=catalog_gamma["depth_km"], s=s, )
-    ax[1,1].scatter(catalog_gamma["longitude"], -catalog_gamma["depth_km"], c=catalog_gamma["depth_km"], s=s, )
-    ax[2,1].scatter(catalog_gamma["latitude"], -catalog_gamma["depth_km"], c=catalog_gamma["depth_km"], s=s, )
-    xlim = ax[0,1].get_xlim()
-    ylim = ax[0,1].get_ylim()
-    zlim = ax[1,1].get_ylim()
-    ax[1,1].set_xlim(xlim)
-    ax[2,1].set_xlim(ylim)
-    ax[0,0].scatter(catalog["longitude"], catalog["latitude"], c=catalog["depth_km"], s=s, )
-    ax[1,0].scatter(catalog["longitude"], -catalog["depth_km"], c=catalog["depth_km"], s=s, )
-    ax[2,0].scatter(catalog["latitude"], -catalog["depth_km"], c=catalog["depth_km"], s=s, )
-    ax[0,0].set_xlim(xlim)
-    ax[0,0].set_ylim(ylim)
-    ax[1,0].set_xlim(xlim)
-    ax[1,0].set_ylim(zlim)
-    ax[2,0].set_xlim(ylim)
-    ax[2,0].set_ylim(zlim)
+    ax[0, 1].scatter(
+        catalog_gamma["longitude"],
+        catalog_gamma["latitude"],
+        c=catalog_gamma["depth_km"],
+        s=s,
+    )
+    ax[1, 1].scatter(
+        catalog_gamma["longitude"],
+        -catalog_gamma["depth_km"],
+        c=catalog_gamma["depth_km"],
+        s=s,
+    )
+    ax[2, 1].scatter(
+        catalog_gamma["latitude"],
+        -catalog_gamma["depth_km"],
+        c=catalog_gamma["depth_km"],
+        s=s,
+    )
+    xlim = ax[0, 1].get_xlim()
+    ylim = ax[0, 1].get_ylim()
+    zlim = ax[1, 1].get_ylim()
+    ax[1, 1].set_xlim(xlim)
+    ax[2, 1].set_xlim(ylim)
+    ax[0, 0].scatter(
+        catalog["longitude"],
+        catalog["latitude"],
+        c=catalog["depth_km"],
+        s=s,
+    )
+    ax[1, 0].scatter(
+        catalog["longitude"],
+        -catalog["depth_km"],
+        c=catalog["depth_km"],
+        s=s,
+    )
+    ax[2, 0].scatter(
+        catalog["latitude"],
+        -catalog["depth_km"],
+        c=catalog["depth_km"],
+        s=s,
+    )
+    ax[0, 0].set_xlim(xlim)
+    ax[0, 0].set_ylim(ylim)
+    ax[1, 0].set_xlim(xlim)
+    ax[1, 0].set_ylim(zlim)
+    ax[2, 0].set_xlim(ylim)
+    ax[2, 0].set_ylim(zlim)
     plt.savefig("location.png", dpi=300)
 
     raise
