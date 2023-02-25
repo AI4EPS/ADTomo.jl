@@ -14,6 +14,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from tqdm import tqdm
 from dataclasses import dataclass
+from datetime import datetime
 
 multiprocessing.set_start_method("spawn", True)
 
@@ -93,23 +94,57 @@ def eikonal_solve(u, f, h):
 
 ############################################################################################################
 
-# %%
-def traveltime(event_loc, station_locs, time_table, rgrid, zgrid, h, sigma=1, bounds=None):
+# %% Fast for GPU
+# def traveltime(event_loc, station_locs, time_table, rgrid, zgrid, h, sigma=1, bounds=None):
+
+#     event_loc = event_loc.unsqueeze(0)
+#     r = torch.sqrt(torch.sum((event_loc[:, :2] - station_locs[:, :2]) ** 2, dim=-1))
+#     z = torch.abs(event_loc[:, 2] - station_locs[:, 2])
+
+#     r = r.unsqueeze(-1).unsqueeze(-1)
+#     z = z.unsqueeze(-1).unsqueeze(-1)
+
+#     magn = (
+#         1.0
+#         / (2.0 * np.pi * sigma)
+#         * torch.exp(-(((rgrid - r) / (np.sqrt(2 * sigma) * h)) ** 2 + ((zgrid - z) / (np.sqrt(2 * sigma) * h)) ** 2))
+#     )
+#     sum_magn = torch.sum(magn, dim=(-1, -2))
+#     tt = torch.sum(time_table * magn, dim=(-1, -2)) / sum_magn
+
+#     return tt
+
+# %% Fast for CPU
+def _interp(time_table, r, z, rgrid, zgrid, h):
+
+    ir0 = (r - rgrid[0,0]).floor_divide(h).clamp(0, rgrid.shape[0] - 2).long()
+    iz0 = (z - zgrid[0,0]).floor_divide(h).clamp(0, zgrid.shape[1] - 2).long()
+    ir1 = ir0 + 1
+    iz1 = iz0 + 1
+
+    ## https://en.wikipedia.org/wiki/Bilinear_interpolation
+    x1 = ir0 * h + rgrid[0,0]
+    x2 = ir1 * h + rgrid[0,0]
+    y1 = iz0 * h + zgrid[0,0]
+    y2 = iz1 * h + zgrid[0,0]
+
+    Q11 = time_table[ir0, iz0]
+    Q12 = time_table[ir0, iz1]
+    Q21 = time_table[ir1, iz0]
+    Q22 = time_table[ir1, iz1]
+
+    t = 1/(x2-x1)/(y2-y1) * (Q11*(x2-r)*(y2-z) + Q21*(r-x1)*(y2-z) + Q12*(x2-r)*(z-y1) + Q22*(r-x1)*(z-y1))
+
+    return t
+
+
+def traveltime(event_loc, station_locs, time_table, rgrid, zgrid, h, **kwargs):
 
     event_loc = event_loc.unsqueeze(0)
     r = torch.sqrt(torch.sum((event_loc[:, :2] - station_locs[:, :2]) ** 2, dim=-1))
     z = torch.abs(event_loc[:, 2] - station_locs[:, 2])
 
-    r = r.unsqueeze(-1).unsqueeze(-1)
-    z = z.unsqueeze(-1).unsqueeze(-1)
-
-    magn = (
-        1.0
-        / (2.0 * np.pi * sigma)
-        * torch.exp(-(((rgrid - r) / (np.sqrt(2 * sigma) * h)) ** 2 + ((zgrid - z) / (np.sqrt(2 * sigma) * h)) ** 2))
-    )
-    sum_magn = torch.sum(magn, dim=(-1, -2))
-    tt = torch.sum(time_table * magn, dim=(-1, -2)) / sum_magn
+    tt = _interp(time_table, r, z, rgrid, zgrid, h)
 
     return tt
 
@@ -207,7 +242,7 @@ def run(catalog, event_index, picks, center, shift_z, up, us, rgrid, zgrid, h, d
         }
     )
     if len(catalog) % 100 == 0:
-        print(f"{len(catalog)} events are inverted.")
+        print(f"{datetime.now()}: {len(catalog)} events inverted.")
 
 
 # %%
@@ -217,8 +252,9 @@ if __name__ == "__main__":
     ##
     @dataclass
     class ArgParser:
-        device: str = "cuda"
-        add_eqt: bool = True
+        # device: str = "cuda"
+        device: str = "cpu"
+        add_eqt: bool = False
         gamma: float = 1.0
     args = ArgParser()
 
@@ -237,12 +273,14 @@ if __name__ == "__main__":
     n = len(zgrid)
 
     # %% Calculate traveltime table
-    x = [0, 5.5, 5.5, 16.0, 16.0, 32.0, 32.0]
-    vp = [5.5, 5.5, 6.3, 6.3, 6.7, 6.7, 7.8]
-    vp1d = np.interp(zgrid, x, vp)
+    zz = [0.0, 5.5, 16.0, 32.0, 100.0]
+    vp = [5.5, 5.5,  6.7,  7.8,   7.8]
+    # zz = [0, 5.5, 5.5, 16.0, 16.0, 32.0, 32.0]
+    # vp = [5.5, 5.5, 6.3, 6.3, 6.7, 6.7, 7.8]
+    vp1d = np.interp(zgrid, zz, vp)
     vs1d = vp1d / 1.73
     plt.figure()
-    plt.plot(x, vp, "o")
+    plt.plot(zz, vp, "o")
     plt.plot(zgrid, vp1d)
     plt.plot(zgrid, vs1d)
     plt.savefig("velocity_model.png")
@@ -277,48 +315,17 @@ if __name__ == "__main__":
     picks = picks.merge(stations, on="id")
 
     # %% Prepare input data
-
     center = [stations["longitude"].mean(), stations["latitude"].mean(), 0]
     shift_z = picks["elevation(m)"].max() / 1000
     picks["x_km"] = (picks["longitude"] - center[0]) * 111.2 * np.cos(np.deg2rad(center[1]))
     picks["y_km"] = (picks["latitude"] - center[1]) * 111.2
     picks["z_km"] = -picks["elevation(m)"] / 1000 + shift_z
 
-    # %% sequential inversion
-    # catalog = []
-    # num = 0
-    # for event_index in tqdm(list(picks["event_idx"].unique())):
-    #     if event_index == -1:
-    #         continue
-
-    #     picks_ = picks[picks["event_idx"] == event_index]
-
-    #     # %%
-    #     picks_tmin = picks_["timestamp"].min()
-    #     picks_tt = (picks_["timestamp"] - picks_tmin).dt.total_seconds()
-    #     picks_time = torch.tensor(picks_tt.values, dtype=torch.float32)
-    #     picks_loc = torch.tensor(picks_[["x_km", "y_km", "z_km"]].values, dtype=torch.float32)
-    #     picks_type = picks_["type"].values
-    #     picks_weight = torch.tensor(picks_["prob"].values, dtype=torch.float32)
-
-    #     # %%
-    #     event_t0, event_loc0 = invert(picks_time, picks_loc, picks_type, picks_weight, up, us, rgrid, zgrid, h, device=device)
-    #     origin_time = picks_tmin + pd.to_timedelta(event_t0.item(), unit="s")
-    #     longitude = event_loc0[0].item()/111.2 + center[0]
-    #     latitude = event_loc0[1].item()/ 111.2 + center[1]
-    #     depth = - event_loc0[2].item() + shift_z
-
-    #     catalog.append({"event_index": event_index, "time": origin_time, "latitude": latitude, "longitude": longitude, "depth_km": depth})
-
-    #     num += 1
-    #     #if num > 20:
-    #     #    break
-
     # %% parallel inversion
     mangaer = mp.Manager()
     catalog = mangaer.list()
-    # num_cpu = mp.cpu_count() // 4
-    num_cpu = 8
+    num_cpu = mp.cpu_count() // 2
+    # num_cpu = 8
     num_gpu = torch.cuda.device_count()
     print("num_cpu", num_cpu)
     print(f"Total number of events: {len(picks['event_idx'].unique())}")
@@ -342,7 +349,7 @@ if __name__ == "__main__":
                     args.add_eqt,
                     args.gamma
                 )
-                for i, event_index in enumerate(list(picks["event_idx"].unique())[:1000])
+                for i, event_index in enumerate(list(picks["event_idx"].unique()))
             ],
         )
 
@@ -418,6 +425,6 @@ if __name__ == "__main__":
     ax[1, 0].set_ylim(zlim)
     ax[2, 0].set_xlim(ylim)
     ax[2, 0].set_ylim(zlim)
-    plt.savefig("location.png", dpi=300)
+    plt.savefig(f"location_{args.device}.png", dpi=300)
 
 # %%
