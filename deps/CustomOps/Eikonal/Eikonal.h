@@ -44,8 +44,8 @@ void sweep(double *u,
         else{
           b = std::min(u[(j-1)*(m+1)+i], u[(j+1)*(m+1)+i]);
         }
-        u_new = solution(a, b, f[j*(m+1)+i], h);
-        u[j*(m+1)+i] = std::min(u[j*(m+1)+i],u_new)
+        double u_new = solution(a, b, f[j*(m+1)+i], h);
+        u[j*(m+1)+i] = std::min(u[j*(m+1)+i],u_new);
       }
     }
     
