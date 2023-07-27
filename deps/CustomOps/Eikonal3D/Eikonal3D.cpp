@@ -171,26 +171,6 @@ void backward(
         }
     }
 
-    // H = sum c_{ijk} * u_{ijk} = c^T u 
-    // partial H/partial f_{lmn} = c^T partial u/partial f_{lmn}
-    // c^T [pu/pf_1 pu/pf_2 ... pu/pf_N] 
-    
-    // i -- source
-    // Gi(u) = g(fi)
-    // Gi(u*) = 0, p Gi(u^*) / p u = 0
-    // 
-    // Gi(u) = g(fi) i = 1, 2, ... N
-    // ==> Gi'(u) * pu/pf1 = p g(fi) / pf1 = 0 (i != 1)
-    // Gi'(u) * [pu/pf1 pu/pf2 ... pu/pf_N]  = [0 0 0 ... 0 g'(fi) 0 ... 0]
-    // [G1'(u); G2'(u);...] * [pu/pf1 pu/pf2 ... pu/pf_N] = diag(g'(f1), g'(f2), ..)
-    //  [pu/pf1 pu/pf2 ... pu/pf_N] = [G1'(u); G2'(u);...] ^{-1} * diag(g'(f1), g'(f2), ..)
-    // output = c^T [G1'(u); G2'(u);...] ^{-1} * diag(g'(f1), g'(f2), ..)
-    // x_row = c^T [G1'(u); G2'(u);...] ^{-1} ==> [G1'(u); G2'(u);...]^T x_col = c
-    // x_row_i x 
-    // output = x_col *  diag(g'(f1), g'(f2), ..) = [x_col1 * g'(f1), x_col2 * g'(f2), ...]
-
-    SpMat A(m*n*l, m*n*l);
-
     if (zero_id.size()>0){
         for (auto& t : triplets){
             if (zero_id.count(t.col()) || zero_id.count(t.row())) t = T(t.col(), t.row(), 0.0);
@@ -199,6 +179,8 @@ void backward(
             triplets.push_back(T(idx, idx, 1.0));
         }
     }
+
+    SpMat A(m*n*l, m*n*l);
     A.setFromTriplets(triplets.begin(), triplets.end());
     A = A.transpose();
     Eigen::SparseLU<SpMat> solver;
