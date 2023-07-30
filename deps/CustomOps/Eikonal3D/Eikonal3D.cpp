@@ -19,15 +19,11 @@ double calculate_unique_solution(double a1_, double a2_,
     if (x <= a2) return x;
     double B = - (a1 + a2);
     double C = (a1 * a1 + a2 * a2 - f * f * h * h)/2.0;
-    double x1 = (-B + sqrt(B * B - 4 * C))/2.0;
-    double x2 = (-B - sqrt(B * B - 4 * C))/2.0;
-    x = x1 > a2 ? x1 : x2;
+    x = (-B + sqrt(B * B - 4 * C))/2.0;
     if (x <= a3) return x;
     B = -2.0*(a1 + a2 + a3)/3.0;
     C = (a1 * a1 + a2 * a2 + a3 * a3 - f * f * h * h)/3.0;
-    x1 = (-B + sqrt(B * B - 4 * C))/2.0;
-    x2 = (-B - sqrt(B * B - 4 * C))/2.0;
-    x = x1 > a3 ? x1 : x2;
+    x = (-B + sqrt(B * B - 4 * C))/2.0;
     return x;
 }
 
