@@ -10,10 +10,10 @@ namespace Eikonal3D{
 
 double calculate_unique_solution(double a1_, double a2_, 
         double a3_, double f, double h){
-    double a1, a2, a3;
-    a3 = std::max(std::max(a1_, a2_), a3_);
-    a1 = std::min(std::min(a1_, a2_), a3_);
-    a2 = a1_ + a2_ + a3_ - a1 - a3;
+    double a1=a1_, a2=a2_, a3=a3_, temp;
+    if(a1>a2) {temp = a1; a1 = a2; a2 = temp;}
+    if(a1>a3) {temp = a1; a1 = a3; a3 = temp;}
+    if(a2>a3) {temp = a2; a2 = a3; a3 = temp;}
 
     double x = a1 + f * h;
     if (x <= a2) return x;
