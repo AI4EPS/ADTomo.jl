@@ -10,10 +10,10 @@ namespace Eikonal3D{
 
 double calculate_unique_solution(double a1_, double a2_, 
         double a3_, double f, double h){
-    double a1, a2, a3;
-    a3 = std::max(std::max(a1_, a2_), a3_);
-    a1 = std::min(std::min(a1_, a2_), a3_);
-    a2 = a1_ + a2_ + a3_ - a1 - a3;
+    double a1=a1_, a2=a2_, a3=a3_, temp;
+    if(a1>a2) {temp = a1; a1 = a2; a2 = temp;}
+    if(a1>a3) {temp = a1; a1 = a3; a3 = temp;}
+    if(a2>a3) {temp = a2; a2 = a3; a3 = temp;}
 
     double x = a1 + f * h;
     if (x <= a2) return x;
@@ -104,12 +104,12 @@ void backward(
 
     // calculate gradients for \partial L/\partial u0
     for (int i = 0; i < m*n*l; i++){
-        if (fabs(u[i] - u0[i])<1e-6) grad_u0[i] = g[i];
+        // if (fabs(u[i] - u0[i])<1e-6) grad_u0[i] = g[i];
+        if (u[i] == u0[i]) grad_u0[i] = g[i];
         else grad_u0[i] = 0.0;
     }
 
     // calculate gradients for \partial L/\partial f
-
     Eigen::VectorXd rhs(m*n*l);
     for (int i=0;i<m*n*l;i++){
       rhs[i] = -2*f[i]*h*h;
@@ -120,6 +120,15 @@ void backward(
     for (int i = 0; i < m; i++){
         for (int j = 0; j < n; j++){
             for (int k = 0; k < l; k++){
+
+                int this_id = get_id(i, j, k);
+
+                if (u[this_id] == u0[this_id]){
+                    zero_id.insert(this_id);
+                    g[this_id] = 0.0;
+                    continue;
+                }
+
                 double uxmin = i==0 ? u(i+1, j, k) : \
                                 (i==m-1 ? u(i-1, j, k) : std::min(u(i+1, j, k), u(i-1, j, k)));
                 double uymin = j==0 ? u(i, j+1, k) : \
@@ -127,7 +136,6 @@ void backward(
                 double uzmin = k==0 ? u(i, j, k+1) : \
                                 (k==l-1 ? u(i, j, k-1) : std::min(u(i, j, k+1), u(i, j, k-1)));
 
-                int this_id = get_id(i, j, k);
                 int idx = i==0 ? get_id(i+1, j, k) : \
                                 (i==m-1 ? get_id(i-1, j, k) : \
                                 ( u(i+1, j, k) > u(i-1, j, k) ? get_id(i-1, j, k) : get_id(i+1, j, k)));
@@ -137,7 +145,6 @@ void backward(
                 int idz = k==0 ? get_id(i, j, k+1) : \
                                 (k==l-1 ? get_id(i, j, k-1) : \
                                 ( u(i, j, k+1) > u(i, j, k-1) ? get_id(i, j, k-1) : get_id(i, j, k+1)));
-
 
                 bool this_id_is_not_zero = false;
                 if (u(i, j, k) > uxmin){
