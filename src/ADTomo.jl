@@ -1,4 +1,4 @@
-module ADEikonal
+module ADTomo
     
     using ADCME
     using Optim
@@ -12,5 +12,6 @@ module ADEikonal
     end
 
     include("eikonal_op.jl")
+    include("mpi_optimize.jl")
 
 end

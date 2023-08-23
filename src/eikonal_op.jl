@@ -5,7 +5,7 @@ function eikonal(f::Union{Array{Float64}, PyObject},
     n_, m_ = size(f) # m width, n depth 
     n = n_-1
     m = m_-1
-    eikonal_ = load_op_and_grad("$(@__DIR__)/../deps/CustomOps/build/libADEikonal","eikonal")
+    eikonal_ = load_op_and_grad("$(@__DIR__)/../deps/CustomOps/build/libADTomo","eikonal")
     # eikonal_ = load_op_and_grad("$(@__DIR__)/../deps/CustomOps/Eikonal/build/libEikonal","eikonal")
     f,srcx,srcy,m,n,h = convert_to_tensor([f,srcx,srcy,m,n,h], [Float64,Int64,Int64,Int64,Int64,Float64])
     # f = tf.cast(f, dtype=tf.float64)
@@ -22,7 +22,7 @@ end
 
 
 function eikonal3d(u0,f,h,m,n,l,tol,verbose)
-    eikonal_three_d_ = load_op_and_grad("../deps/CustomOps/build/libADEikonal","eikonal_three_d")
+    eikonal_three_d_ = load_op_and_grad("../deps/CustomOps/build/libADTomo","eikonal_three_d")
     # eikonal_three_d_ = load_op_and_grad("../deps/CustomOps/Eikonal3D/build/libEikonalThreeD","eikonal_three_d")
     u0,f,h,m,n,l,tol,verbose = convert_to_tensor(Any[u0,f,h,m,n,l,tol,verbose], [Float64,Float64,Float64,Int64,Int64,Int64,Float64,Bool])
     u0 = tf.reshape(u0, (-1,))

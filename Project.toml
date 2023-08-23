@@ -1,4 +1,4 @@
-name = "ADEikonal"
+name = "ADTomo"
 uuid = "19e747a5-ce5d-4328-bb0b-c35ca2971bd0"
 authors = ["Kailai Xu <kailaix@hotmail.com>", "Weiqiang Zhu <zhuwq@stanford.edu>"]
 version = "0.1.0"

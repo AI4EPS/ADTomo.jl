@@ -51,7 +51,7 @@ endif()
 include_directories(${TF_INC} ${PREFIXDIR} ${CUDA_INC})
 link_directories(${LIBDIR})
 
-add_library(ADEikonal SHARED 
+add_library(ADTomo SHARED 
       Eikonal/Eikonal.cpp
       Eikonal3D/Eikonal3D.cpp
       Eikonal3D/EikonalThreeD.cpp
@@ -61,9 +61,9 @@ add_definitions(-DNOGPU)
 find_package(OpenMP)
 if(OpenMP_CXX_FOUND)
     message("OPENMP Found")
-    target_link_libraries(ADEikonal OpenMP::OpenMP_CXX)
-    target_compile_options(ADEikonal PRIVATE -fopenmp)
+    target_link_libraries(ADTomo OpenMP::OpenMP_CXX)
+    target_compile_options(ADTomo PRIVATE -fopenmp)
 endif()
 
-set_property(TARGET ADEikonal PROPERTY POSITION_INDEPENDENT_CODE ON)
-target_link_libraries(ADEikonal ${TF_LIB_FILE})
+set_property(TARGET ADTomo PROPERTY POSITION_INDEPENDENT_CODE ON)
+target_link_libraries(ADTomo ${TF_LIB_FILE})

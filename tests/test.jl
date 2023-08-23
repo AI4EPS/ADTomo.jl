@@ -1,5 +1,5 @@
 using ADCME
-using ADEikonal
+using ADTomo
 using PyCall
 using LinearAlgebra
 using PyPlot
