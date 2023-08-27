@@ -1,6 +1,6 @@
 export mpi_optimize
 
-function mpi_optimize(_f::Function, _g!::Function, x0::Array{Float64};
+function mpi_optimize(_f::Function, _g!::Function, x0::Array{Float64}; 
     method::String="LBFGS", options=missing)
 
     r = mpi_rank()
@@ -13,12 +13,10 @@ function mpi_optimize(_f::Function, _g!::Function, x0::Array{Float64};
         flag[1] = 1
         mpi_sync!(flag)
         L = _f(x)
-
         if r == 0 && ADCME.options.training.verbose
             __cnt += 1
             println("iter $__cnt, current loss=", L)
         end
-
         return L
     end
 
@@ -34,14 +32,14 @@ function mpi_optimize(_f::Function, _g!::Function, x0::Array{Float64};
 
     if method == "LBFGS"
         method = Optim.LBFGS(
-                alphaguess=Optim.LineSearches.InitialStatic(),
-                linesearch=Optim.LineSearches.BackTracking(),
-            )
+            alphaguess=Optim.LineSearches.InitialStatic(),
+            linesearch=Optim.LineSearches.BackTracking(),
+        )
     elseif method == "BFGS"
         method = Optim.BFGS(
-                alphaguess=Optim.LineSearches.InitialStatic(),
-                linesearch=Optim.LineSearches.BackTracking(),
-            )
+            alphaguess=Optim.LineSearches.InitialStatic(),
+            linesearch=Optim.LineSearches.BackTracking(),
+        )
     else
         error("Method $method not implemented.")
     end
@@ -66,6 +64,77 @@ function mpi_optimize(_f::Function, _g!::Function, x0::Array{Float64};
                 break
             end
         end
+        return nothing
+    end
+
+end
+
+
+# https://github.com/kailaix/ADCME.jl/blob/074c84443cfe89b66a1b8900a83d60f81d4fbc03/src/optim.jl#L792C36-L792C52
+function mpi_optimize(sess::PyObject, loss::PyObject, 
+    vars::Union{Array{PyObject},PyObject,Missing}=missing,
+    grads::Union{Array{T},Nothing,PyObject,Missing}=missing;
+    method::String="LBFGS", options=missing) where T<:Union{Nothing, PyObject}
+
+    vars = coalesce(vars, get_collection())
+    grads = coalesce(grads, gradients(loss, vars))
+    if isa(vars, PyObject)
+        vars = [vars]
+    end
+    if isa(grads, PyObject)
+        grads = [grads]
+    end
+    if length(grads) != length(vars)
+        error("ADCME: length of grads and vars do not match")
+    end
+
+    if !all(is_variable.(vars))
+        error("ADCME: the input `vars` should be trainable variables")
+    end
+
+    idx = ones(Bool, length(grads))
+    pynothing = pytypeof(PyObject(nothing))
+    for i = 1:length(grads)
+        if isnothing(grads[i]) || pytypeof(grads[i]) == pynothing
+            idx[i] = false
+        end
+    end
+    grads = grads[idx]
+    vars = vars[idx]
+    sizes = []
+    for v in vars
+        push!(sizes, size(v))
+    end
+    grds = vcat([tf.reshape(g, (-1,)) for g in grads]...)
+    vs = vcat([tf.reshape(v, (-1,)) for v in vars]...)
+    x0 = run(sess, vs)
+    pl = placeholder(x0)
+    n = 0
+    assign_ops = PyObject[]
+    for (k, v) in enumerate(vars)
+        vnew = tf.reshape(pl[n+1:n+prod(sizes[k])], sizes[k])
+        vnew = cast(vnew, get_dtype(pl))
+        push!(assign_ops, assign(v, vnew))
+        n += prod(sizes[k])
+    end
+
+    function _f(x)
+        run(sess, assign_ops, pl => x)
+        run(sess, loss)
+    end
+
+    function _g!(G, x)
+        run(sess, assign_ops, pl => x)
+        G[:] = run(sess, grds)
+    end
+
+    result = mpi_optimize(_f, _g!, x0, method=method, options=options)
+    if mpi_rank() == 0
+        x = result.minimizer
+        x = run(sess, assign_ops, pl => x)
+        l = result.minimum
+        return x
+    else
         return nothing
     end
 
