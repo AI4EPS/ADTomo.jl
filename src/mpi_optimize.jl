@@ -1,8 +1,7 @@
 export mpi_optimize
 
 function mpi_optimize(_f::Function, _g!::Function, x0::Array{Float64}; 
-    method::String="LBFGS", options=missing)
-
+    method::String="LBFGS", options=missing, loc = string, steps = Int)
     r = mpi_rank()
     flag = zeros(Int64, 1)
 
@@ -24,6 +23,9 @@ function mpi_optimize(_f::Function, _g!::Function, x0::Array{Float64};
         if r == 0 && ADCME.options.training.verbose
             __iter += 1
             println("================== STEP $__iter ==================")
+            if __iter % steps == 0
+                h5write(loc * "iter_$__iter.h5","data",x)
+            end
         end
         flag[1] = 2
         mpi_sync!(flag)
@@ -74,7 +76,7 @@ end
 function mpi_optimize(sess::PyObject, loss::PyObject, 
     vars::Union{Array{PyObject},PyObject,Missing}=missing,
     grads::Union{Array{T},Nothing,PyObject,Missing}=missing;
-    method::String="LBFGS", options=missing) where T<:Union{Nothing, PyObject}
+    method::String="LBFGS", options=missing, loc=string, steps=Int) where T<:Union{Nothing, PyObject}
 
     vars = coalesce(vars, get_collection())
     grads = coalesce(grads, gradients(loss, vars))
@@ -128,7 +130,7 @@ function mpi_optimize(sess::PyObject, loss::PyObject,
         G[:] = run(sess, grds)
     end
 
-    result = mpi_optimize(_f, _g!, x0, method=method, options=options)
+    result = mpi_optimize(_f, _g!, x0, method=method, options=options, loc=loc, steps = steps)
     if mpi_rank() == 0
         x = result.minimizer
         x = run(sess, assign_ops, pl => x)

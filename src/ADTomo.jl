@@ -5,6 +5,7 @@ module ADTomo
     using PyCall
     using PyPlot
     using Printf
+    using HDF5
 
     np = PyNULL()
     function __init__()
