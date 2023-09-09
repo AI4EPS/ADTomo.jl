@@ -271,6 +271,7 @@ end
 ## plot residual histogram
 delt_p = []; delt_s = []; numbig_p = 0; numsmall_p = 0; numbig_s = 0; numsmall_s = 0
 sta_record = zeros(numsta_,2); eve_record = zeros(numeve,2)
+sta_sum = zeros(numsta_); eve_sum = zeros(numeve)
 for i = 1:numeve
     for j = 1:numsta_
         if uobs_p[j,i] != -1
@@ -278,14 +279,14 @@ for i = 1:numeve
             if abs(uobs_p[j,i] - scaltime_p[j,i]) < prange 
                 if (uobs_p[j,i]-scaltime_p[j,i])>0
                     global numbig_p += 1
-                    sta_record[j,1] += 1
-                    eve_record[i,1] += 1
+                    sta_record[j,1] += 1; eve_record[i,1] += 1
                 end
                 if (uobs_p[j,i]-scaltime_p[j,i])<0
                     global numsmall_p += 1
-                    sta_record[j,2] += 1
-                    eve_record[i,2] += 1
+                    sta_record[j,2] += 1; eve_record[i,2] += 1
                 end
+                sta_sum[j] += uobs_p[j,i] - scaltime_p[j,i]
+                eve_sum[i] += uobs_p[j,i] - scaltime_p[j,i]
             else 
                 uobs_p[j,i] = -1
             end
@@ -295,14 +296,14 @@ for i = 1:numeve
             if abs(uobs_s[j,i] - scaltime_s[j,i]) < srange 
                 if (uobs_s[j,i]-scaltime_s[j,i])>0
                     global numbig_s += 1
-                    sta_record[j,1] += 1
-                    eve_record[i,1] += 1
+                    sta_record[j,1] += 1; eve_record[i,1] += 1
                 end
                 if (uobs_s[j,i]-scaltime_s[j,i])<0
                     global numsmall_s += 1
-                    sta_record[j,2] += 1
-                    eve_record[i,2] += 1
+                    sta_record[j,2] += 1; eve_record[i,2] += 1
                 end
+                sta_sum[j] += uobs_s[j,i] - scaltime_s[j,i]
+                eve_sum[i] += uobs_s[j,i] - scaltime_s[j,i]
             else 
                 uobs_s[j,i] = -1
             end
@@ -327,21 +328,23 @@ println(rfile,dx);println(rfile,dy);println(rfile,dz)
 close(rfile)
 #= for save matrixes
 
-serialize(folder * "/alleve.jls",alleve)
-serialize(folder * "/allsta.jls",allsta)
-serialize(floder * "/eve_ratio.jls",eve_ratio)
-serialize(folder * "/sta_ratio.jls",sta_ratio)
+CSV.write(folder * "alleve.csv",alleve)
+CSV.write(folder * "allsta.csv",allsta)
+h5write(folder * "eve_ratio.h5","data",eve_ratio)
+h5write(folder * "sta_ratio.h5","data",sta_ratio)
+h5write(folder * "eve_sum.h5","data",eve_sum)
+h5write(folder * "sta_sum.h5","data",sta_sum)
 
-h5write(folder * "/1D_fvel0_p.h5","data",fvel0_p)
-h5write(folder * "/1D_fvel0_s.h5","data",fvel0_s)
-h5write(folder * "/1D_vel0_p.h5","data",vel0_p)
-h5write(folder * "/1D_vel0_s.h5","data",vel0_s)
-h5write(folder * "/for_P/scaltime_p.h5","matrix",scaltime_p)
-h5write(folder * "/for_S/scaltime_s.h5","matrix",scaltime_s)
-h5write(folder * "/for_P/uobs_p.h5","matrix",uobs_p)
-h5write(folder * "/for_S/uobs_s.h5","matrix",uobs_s)
-h5write(folder * "/for_P/qua_p.h5","matrix",qua_p)
-h5write(folder * "/for_S/qua_s.h5","matrix",qua_s)
+h5write(folder * "1D_fvel0_p.h5","data",fvel0_p)
+h5write(folder * "1D_fvel0_s.h5","data",fvel0_s)
+h5write(folder * "1D_vel0_p.h5","data",vel0_p)
+h5write(folder * "1D_vel0_s.h5","data",vel0_s)
+h5write(folder * "for_P/scaltime_p.h5","matrix",scaltime_p)
+h5write(folder * "for_S/scaltime_s.h5","matrix",scaltime_s)
+h5write(folder * "for_P/uobs_p.h5","matrix",uobs_p)
+h5write(folder * "for_S/uobs_s.h5","matrix",uobs_s)
+h5write(folder * "for_P/qua_p.h5","matrix",qua_p)
+h5write(folder * "for_S/qua_s.h5","matrix",qua_s)
 =#
 figure()
 scatter(alleve.y,alleve.x)
@@ -350,7 +353,7 @@ savefig(folder * "/location.png")
 
 plt.figure(); plt.hist(delt_p,bins=bins)
 plt.xlabel("Residual"); plt.ylabel("Frequency"); plt.xlim(-prange*2,prange*2)
-plt.title("Histogram_P");plt.savefig(folder * "/for_P/hist_p.png")
+plt.title("Histogram_P");plt.savefig(folder * "for_P/hist_p.png")
 plt.figure(); plt.hist(delt_s,bins=bins); plt.xlim(-srange*2,srange*2)
 plt.xlabel("Residual"); plt.ylabel("Frequency")
-plt.title("Histogram_S");plt.savefig(folder * "/for_S/hist_s.png")
+plt.title("Histogram_S");plt.savefig(folder * "for_S/hist_s.png")
