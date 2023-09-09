@@ -10,12 +10,12 @@ using PyPlot
 
 folder = "readin_data/no_rotation/"
 h = 1.0; bins = 2000; prange = 2; srange = 5
-veltimes_p = 1; veltimes_s = 1.05; phasereq = 0.8
+veltimes_p = 0.99; veltimes_s = 1.04; phasereq = 0.8
 
 raw_stations = CSV.read("seismic_data/BayArea/obspy/stations.csv", DataFrame)
 events = CSV.read("seismic_data/BayArea/obspy/catalog.csv", DataFrame)
 numsta = size(raw_stations,1); numeve = size(events,1)
-stations = DataFrame(x=[], y=[], z=[])
+stations = DataFrame(x=[], y=[], z=[], lon=[], lat=[])
 dic_sta = Dict(); numsta_ = 0
 for j = 1:numsta
     local flag = false
@@ -42,14 +42,17 @@ for j = 1:numsta
     push!(stations.x, raw_stations[j,18])
     push!(stations.y, raw_stations[j,19])
     push!(stations.z, raw_stations[j,20])
+    push!(stations.lon,raw_stations[j,7])
+    push!(stations.lat,raw_stations[j,8])
 end
 numsta = numsta_
 
 # study a region of (m=31km, n=41km, l=30km(-5~25))
-m = 141; n = 241; l = 47; 
-dx = 51; dy = 121; dz = 3
+minx = 0; miny = 0; minz = 0;
+maxx = 0; maxy = 0; maxz = 0;
 
-allsta = DataFrame(x = [], y = [], z = []); alleve = DataFrame(x = [], y = [], z = [])
+allsta = DataFrame(x = [], y = [], z = [], lon = [], lat = [])
+alleve = DataFrame(x = [], y = [], z = [], lon = [], lat = [])
 staget = zeros(numsta);eveid = []
 for i = 1:numeve
     file = "seismic_data/BayArea/phasenet/picks/" * events[i,1] * ".csv"
@@ -75,18 +78,20 @@ for i = 1:numeve
     if eveget < 10 
         continue
     end
-
-    x = (events[i,7] + dx)/h
-    y = (events[i,8] + dy)/h
-    z = (events[i,9] + dz)/h
-    if x<1 || x>m || y<1 || y>n  
-        continue  
+    if events[i,9] > 25
+        continue
     end
-    
+
     push!(eveid,i)
-    push!(alleve.x,x)
-    push!(alleve.y,y)
-    push!(alleve.z,z) 
+    push!(alleve.x,events[i,7])
+    push!(alleve.y,events[i,8])
+    push!(alleve.z,events[i,9])
+    push!(alleve.lon,events[i,4])
+    push!(alleve.lat,events[i,5])
+
+    global minx = min(minx,events[i,7]); global maxx = max(maxx,events[i,7])
+    global miny = min(miny,events[i,8]); global maxy = max(maxy,events[i,8])
+    global minz = min(minz,events[i,9]); global maxz = max(maxz,events[i,9])
 end
 numeve = size(alleve,1)
 
@@ -96,20 +101,27 @@ for j = 1:numsta
         dic_new[j] = -1
         continue
     end
-
-    x = (stations.x[j] + dx)/h
-    y = (stations.y[j] + dy)/h
-    z = (stations.z[j] + dz)/h
-    if x<1 || x>m || y<1 || y>n 
-        dic_new[j] = -1
-        continue  
-    end
-
     global numsta_ += 1
     dic_new[j] = numsta_
-    push!(allsta.x,x)
-    push!(allsta.y,y)
-    push!(allsta.z,z)
+    push!(allsta.x,stations.x[j])
+    push!(allsta.y,stations.y[j])
+    push!(allsta.z,stations.z[j])
+    push!(allsta.lon,stations.lon[j])
+    push!(allsta.lat,stations.lat[j])
+
+    global minx = min(minx,stations.x[j]); global maxx = max(maxx,stations.x[j])
+    global miny = min(miny,stations.y[j]); global maxy = max(maxy,stations.y[j])
+    global minz = min(minz,stations.z[j]); global maxz = max(maxz,stations.z[j])
+end
+
+dx = convert(Int64, ceil(abs(minx)) + h); m = convert(Int64,ceil(maxx + dx) + h)
+dy = convert(Int64, ceil(abs(miny)) + h); n = convert(Int64,ceil(maxy + dy) + h)
+dz = convert(Int64, ceil(abs(minz)) + h); l = convert(Int64,ceil(maxz + dz) + h)
+for i = 1:numsta_
+    allsta.x[i] += dx; allsta.y[i] += dy; allsta.z[i] += dz
+end
+for i = 1:numeve
+    alleve.x[i] += dx; alleve.y[i] += dy; alleve.z[i] += dz
 end
 
 vel_p = Dict(); fvel0_p = ones(m,n,l); vel0_p = ones(m,n,l) 
