@@ -270,7 +270,8 @@ end
 
 ## plot residual histogram
 delt_p = []; delt_s = []; numbig_p = 0; numsmall_p = 0; numbig_s = 0; numsmall_s = 0
-sta_record = zeros(numsta_,2); eve_record = zeros(numeve,2)
+sta_record_p = zeros(numsta_,2); eve_record_p = zeros(numeve,2)
+sta_record_s = zeros(numsta_,2); eve_record_s = zeros(numeve,2)
 sta_sum = zeros(numsta_); eve_sum = zeros(numeve)
 for i = 1:numeve
     for j = 1:numsta_
@@ -279,11 +280,11 @@ for i = 1:numeve
             if abs(uobs_p[j,i] - scaltime_p[j,i]) < prange 
                 if (uobs_p[j,i]-scaltime_p[j,i])>0
                     global numbig_p += 1
-                    sta_record[j,1] += 1; eve_record[i,1] += 1
+                    sta_record_p[j,1] += 1; eve_record_p[i,1] += 1
                 end
                 if (uobs_p[j,i]-scaltime_p[j,i])<0
                     global numsmall_p += 1
-                    sta_record[j,2] += 1; eve_record[i,2] += 1
+                    sta_record_p[j,2] += 1; eve_record_p[i,2] += 1
                 end
                 sta_sum[j] += uobs_p[j,i] - scaltime_p[j,i]
                 eve_sum[i] += uobs_p[j,i] - scaltime_p[j,i]
@@ -296,11 +297,11 @@ for i = 1:numeve
             if abs(uobs_s[j,i] - scaltime_s[j,i]) < srange 
                 if (uobs_s[j,i]-scaltime_s[j,i])>0
                     global numbig_s += 1
-                    sta_record[j,1] += 1; eve_record[i,1] += 1
+                    sta_record_s[j,1] += 1; eve_record_s[i,1] += 1
                 end
                 if (uobs_s[j,i]-scaltime_s[j,i])<0
                     global numsmall_s += 1
-                    sta_record[j,2] += 1; eve_record[i,2] += 1
+                    sta_record_s[j,2] += 1; eve_record_s[i,2] += 1
                 end
                 sta_sum[j] += uobs_s[j,i] - scaltime_s[j,i]
                 eve_sum[i] += uobs_s[j,i] - scaltime_s[j,i]
@@ -310,12 +311,15 @@ for i = 1:numeve
         end
     end
 end
-sta_ratio = ones(numsta_); eve_ratio = ones(numeve)
+sta_ratio_p = ones(numsta_); eve_ratio_p = ones(numeve)
+sta_ratio_s = ones(numsta_); eve_ratio_s = ones(numeve)
 for i = 1:numsta_
-    sta_ratio[i] = (sta_record[i,1]-sta_record[i,2]) / (sta_record[i,1]+sta_record[i,2])
+    sta_ratio_p[i] = (sta_record_p[i,1]-sta_record_p[i,2]) / (sta_record_p[i,1]+sta_record_p[i,2])
+    sta_ratio_s[i] = (sta_record_s[i,1]-sta_record_s[i,2]) / (sta_record_s[i,1]+sta_record_s[i,2])
 end
 for i = 1:numeve
-    eve_ratio[i] = (eve_record[i,1]-eve_record[i,2]) / (eve_record[i,1]+eve_record[i,2])
+    eve_ratio_p[i] = (eve_record_p[i,1]-eve_record_p[i,2]) / (eve_record_p[i,1]+eve_record_p[i,2])
+    eve_ratio_s[i] = (eve_record_s[i,1]-eve_record_s[i,2]) / (eve_record_s[i,1]+eve_record_s[i,2])
 end
 sta_sum /= maximum(sta_sum); eve_sum /= maximum(eve_sum)
 
@@ -331,8 +335,10 @@ close(rfile)
 
 CSV.write(folder * "alleve.csv",alleve)
 CSV.write(folder * "allsta.csv",allsta)
-h5write(folder * "eve_ratio.h5","data",eve_ratio)
-h5write(folder * "sta_ratio.h5","data",sta_ratio)
+h5write(folder * "eve_ratio_p.h5","data",eve_ratio_p)
+h5write(folder * "sta_ratio_p.h5","data",sta_ratio_p)
+h5write(folder * "eve_ratio_s.h5","data",eve_ratio_s)
+h5write(folder * "sta_ratio_s.h5","data",sta_ratio_s)
 h5write(folder * "eve_sum.h5","data",eve_sum)
 h5write(folder * "sta_sum.h5","data",sta_sum)
 
