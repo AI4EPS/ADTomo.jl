@@ -317,6 +317,7 @@ end
 for i = 1:numeve
     eve_ratio[i] = (eve_record[i,1]-eve_record[i,2]) / (eve_record[i,1]+eve_record[i,2])
 end
+sta_sum /= maximum(sta_sum); eve_sum /= maximum(eve_sum)
 
 print(numbig_p,' ',numsmall_p,'\n',numbig_s,' ',numsmall_s,'\n')
 print(numsta,' ',numeve,'\n',size(stations,1),' ',size(events,1),'\n')
