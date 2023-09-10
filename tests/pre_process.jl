@@ -9,7 +9,7 @@ using PyCall
 using Dates
 using PyPlot
 
-folder = "readin_data/no_rotation/"
+folder = "readin_data/1/"
 h = 1.0; bins = 2000; prange = 2; srange = 5; theta = 32
 veltimes_p = 0.99; veltimes_s = 1.04; phasereq = 0.8
 
@@ -330,7 +330,7 @@ println(rfile,m);println(rfile,n);println(rfile,l);
 println(rfile,h);println(rfile,bins)
 println(rfile,dx);println(rfile,dy);println(rfile,dz)
 close(rfile)
-#= for save matrixes
+# for save matrixes
 
 CSV.write(folder * "alleve.csv",alleve)
 CSV.write(folder * "allsta.csv",allsta)
@@ -351,7 +351,7 @@ h5write(folder * "for_P/uobs_p.h5","matrix",uobs_p)
 h5write(folder * "for_S/uobs_s.h5","matrix",uobs_s)
 h5write(folder * "for_P/qua_p.h5","matrix",qua_p)
 h5write(folder * "for_S/qua_s.h5","matrix",qua_s)
-=#
+#
 figure()
 scatter(alleve.y,alleve.x)
 scatter(allsta.y,allsta.x)
