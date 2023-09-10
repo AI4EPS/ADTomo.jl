@@ -1,3 +1,4 @@
+push!(LOAD_PATH,"../src")
 using CSV
 using DataFrames
 using Serialization
@@ -9,7 +10,7 @@ using Dates
 using PyPlot
 
 folder = "readin_data/no_rotation/"
-h = 1.0; bins = 2000; prange = 2; srange = 5
+h = 1.0; bins = 2000; prange = 2; srange = 5; theta = 32
 veltimes_p = 0.99; veltimes_s = 1.04; phasereq = 0.8
 
 raw_stations = CSV.read("seismic_data/BayArea/obspy/stations.csv", DataFrame)
@@ -34,9 +35,7 @@ for j = 1:numsta
             continue
         end
     end
-    if flag
-        continue
-    end
+    if flag continue end
     global numsta_ += 1
     dic_sta[name] = numsta_
     push!(stations.x, raw_stations[j,18])
@@ -78,20 +77,17 @@ for i = 1:numeve
     if eveget < 10 
         continue
     end
-    if events[i,9] > 25
-        continue
-    end
+    x = (events[i,7] * cosd(theta) + events[i,8] * sind(theta))/h
+    y = (events[i,8] * cosd(theta) - events[i,7] * sind(theta))/h
+    z = events[i,9]/h
+    if x<-60 || x>100 || z>25 continue end
 
     push!(eveid,i)
-    push!(alleve.x,events[i,7])
-    push!(alleve.y,events[i,8])
-    push!(alleve.z,events[i,9])
-    push!(alleve.lon,events[i,4])
-    push!(alleve.lat,events[i,5])
+    push!(alleve.x,x); push!(alleve.y,y); push!(alleve.z,z) 
+    push!(alleve.lon,events[i,5]); push!(alleve.lat,events[i,4])
 
-    global minx = min(minx,events[i,7]); global maxx = max(maxx,events[i,7])
-    global miny = min(miny,events[i,8]); global maxy = max(maxy,events[i,8])
-    global minz = min(minz,events[i,9]); global maxz = max(maxz,events[i,9])
+    global minx = min(minx,x); global miny = min(miny,y); global minz = min(minz,z)
+    global maxx = max(maxx,x); global maxy = max(maxy,y); global maxz = max(maxz,z)
 end
 numeve = size(alleve,1)
 
@@ -101,17 +97,20 @@ for j = 1:numsta
         dic_new[j] = -1
         continue
     end
-    global numsta_ += 1
-    dic_new[j] = numsta_
-    push!(allsta.x,stations.x[j])
-    push!(allsta.y,stations.y[j])
-    push!(allsta.z,stations.z[j])
-    push!(allsta.lon,stations.lon[j])
-    push!(allsta.lat,stations.lat[j])
+    x = (stations.x[j]*cosd(theta) + stations.y[j]*sind(theta))/h
+    y = (stations.y[j]*cosd(theta) - stations.x[j]*sind(theta))/h
+    z = stations.z[j]/h
+    if x<-60 || x>100 
+        dic_new[j] = -1
+        continue  
+    end
 
-    global minx = min(minx,stations.x[j]); global maxx = max(maxx,stations.x[j])
-    global miny = min(miny,stations.y[j]); global maxy = max(maxy,stations.y[j])
-    global minz = min(minz,stations.z[j]); global maxz = max(maxz,stations.z[j])
+    global numsta_ += 1; dic_new[j] = numsta_
+    push!(allsta.x,x); push!(allsta.y,y); push!(allsta.z,z)
+    push!(allsta.lon,stations.lon[j]); push!(allsta.lat,stations.lat[j])
+
+    global minx = min(minx,x); global miny = min(miny,y); global minz = min(minz,z)
+    global maxx = max(maxx,x); global maxy = max(maxy,y); global maxz = max(maxz,z)
 end
 
 dx = convert(Int64, ceil(abs(minx)) + h); m = convert(Int64,ceil(maxx + dx) + h)
