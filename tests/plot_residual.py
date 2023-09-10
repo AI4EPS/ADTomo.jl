@@ -1,6 +1,9 @@
 import pygmt
 import h5py
 import pandas as pd
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import numpy as np
 
 folder = "readin_data/1/"
 alleve = pd.read_csv(folder+"alleve.csv")
@@ -34,3 +37,15 @@ fig.colorbar(cmap="polar", position="JTR+jTR+o-1c/1c/0/1c/0.2c")
 fig.colorbar()
 fig.savefig(folder+"residual/mapsta_s.png")
 
+numeve = len(alleve)
+cmap = plt.get_cmap('seismic')
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+for i in range(numeve):
+    ax.scatter(alleve.lon,alleve.lat,-alleve.z+4,marker='o',cmap='seismic',c=eve_ratio_p)
+fig.savefig(folder+"residual/mapeve_p.png")
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+for i in range(numeve):
+    ax.scatter(alleve.lon,alleve.lat,-alleve.z+4,marker='o',cmap='seismic',c=eve_ratio_s)
+fig.savefig(folder+"residual/mapeve_s.png")
