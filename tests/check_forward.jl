@@ -6,7 +6,7 @@ using CSV
 using DataFrames
 using HDF5
 
-folder = "readin_data/1/"; prange = 2; srange = 5
+folder = "readin_data/3/"; prange = 2; srange = 5
 rfile = open(folder * "range.txt","r")
 m = parse(Int16,readline(rfile)); n = parse(Int16,readline(rfile))
 l = parse(Int16,readline(rfile)); h = parse(Float16,readline(rfile))
@@ -23,7 +23,7 @@ scaltime_s = h5read(folder * "for_S/scaltime_s.h5","matrix")
 uobs_p = h5read(folder * "for_P/uobs_p.h5","matrix")
 uobs_s = h5read(folder * "for_S/uobs_s.h5","matrix")
 
-len = 20; fvel_p = ones(m,n,l); fvel_s = ones(m,n,l)
+len = 10; fvel_p = ones(m,n,l); fvel_s = ones(m,n,l)
 for i = 0:m-1
     for j = 0:n-1
         for k = 0:l-1
@@ -32,9 +32,9 @@ for i = 0:m-1
             kk = (k - k%len)/len
             if (ii + jj + kk)%2 == 0
                 fvel_p[i+1,j+1,k+1] = fvel0_p[i+1,j+1,k+1] / 1.2
-                fvel_s[i+1,j+1,k+1] = fvel0_p[i+1,j+1,k+1] / 0.8
+                fvel_s[i+1,j+1,k+1] = fvel0_s[i+1,j+1,k+1] / 1.2
             else
-                fvel_p[i+1,j+1,k+1] = fvel0_s[i+1,j+1,k+1] / 1.2
+                fvel_p[i+1,j+1,k+1] = fvel0_p[i+1,j+1,k+1] / 0.8
                 fvel_s[i+1,j+1,k+1] = fvel0_s[i+1,j+1,k+1] / 0.8
             end
         end
@@ -132,21 +132,15 @@ for i = 1:numeve
         if uobs_p[j,i] == -1
             continue
         end
-        if abs(uobs_p[j,i] - scaltime_p[j,i]) > prange
-            continue
-        end
         ucheck_p[j,i] = caltime_p[j,i]
     end
     for j = 1:numsta
         if uobs_s[j,i] == -1
             continue
         end
-        if abs(uobs_s[j,i] - scaltime_s[j,i]) > srange
-            continue
-        end
         ucheck_s[j,i] = caltime_s[j,i]    
     end
 end
 
-h5write(folder * "for_P/ucheck_1_p.h5","matrix",ucheck_p)
-h5write(folder * "for_S/ucheck_1_s.h5","matrix",ucheck_s)
+h5write(folder * "for_P/ucheck_p.h5","matrix",ucheck_p)
+h5write(folder * "for_S/ucheck_s.h5","matrix",ucheck_s)
