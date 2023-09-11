@@ -8,7 +8,7 @@ using Dates
 using PyPlot
 using Colors
 
-folder = "readin_data/area3_2/"
+folder = "readin_data/3/"
 h5folder = "intermediate/inv_0/"
 rfile = open(folder * "range.txt","r")
 m = parse(Int,readline(rfile)); n = parse(Int,readline(rfile))
@@ -26,7 +26,7 @@ for ite = 15:15:300
     fplot = run(sess,fvar)
     
     figure(figsize = (20,20))
-    for i = 1:25
+    for i = 1:l
         vref = 1/f0[1,1,i]
         subplot(5,5,i)
         plotf2 = ones(m,n)
@@ -38,8 +38,8 @@ for ite = 15:15:300
             end
         end
         
-        pcolormesh(plotf2,cmap = newcmap,vmin = 3,vmax = 8)
-        #pcolormesh(plotf2,cmap = "seismic",vmin=1 ./f0[1,1,i] * 0.8,vmax=1 ./f0[1,1,i]*1.2)
+        #pcolormesh(plotf2,cmap = newcmap,vmin = 3,vmax = 8)
+        pcolormesh(plotf2,cmap = "seismic",vmin=1 ./f0[1,1,i] * 0.8,vmax=1 ./f0[1,1,i]*1.2)
         title("layer "*string(i))
         colorbar()
     end
