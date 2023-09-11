@@ -7,7 +7,6 @@ using ADTomo
 using PyCall
 using PyPlot
 using LinearAlgebra
-using Serialization
 using DataFrames
 using HDF5
 using Dates
@@ -20,19 +19,19 @@ mpi_init()
 rank = mpi_rank()
 nproc = mpi_size()
 
-folder = "/home/lingxia/ADTomo.jl/tests/readin_data/test/"; prange = 2; srange = 5
+folder = "/home/lingxia/ADTomo.jl/tests/readin_data/1/"; prange = 2; srange = 5
 rfile = open(folder * "range.txt","r")
 m = parse(Int,readline(rfile)); n = parse(Int,readline(rfile))
 l = parse(Int,readline(rfile)); h = parse(Float64,readline(rfile))
 rpvs = parse(Float64,readline(rfile)); bins = parse(Int,readline(rfile))
 
-allsta = deserialize(folder * "allsta.jls")
-alleve = deserialize(folder * "alleve.jls")
+allsta = CSV.read(folder * "allsta.csv",DataFrame)
+alleve = CSV.read(folder * "alleve.csv",DataFrame)
 numsta = size(allsta,1); numeve = size(alleve,1)
 fvel0_p = h5read(folder * "1D_fvel0_p.h5","data")
 vel0_p = h5read(folder * "1D_vel0_p.h5","data")
 scaltime_p = h5read(folder * "for_P/scaltime_p.h5","matrix")
-uobs_p = h5read(folder * "for_P/uobs_p.h5","matrix")
+uobs_p = h5read(folder * "for_P/ucheck_1_p.h5","matrix")
 qua_p = h5read(folder * "for_P/qua_p.h5","matrix")
 
 scaltime_p = scaltime_p[rank+1:nproc:numsta,:]
@@ -125,7 +124,7 @@ loss = mpi_sum(loss)
 
 options = Optim.Options(iterations = 300)
 result = ADTomo.mpi_optimize(sess, loss, method="LBFGS", options = options, 
-    loc = folder * "intermediate/", steps = 15)
+    loc = folder * "intermediate/0/", steps = 15)
 if mpi_rank()==0
     @info [size(result[i]) for i = 1:length(result)]
     @info [length(result)]

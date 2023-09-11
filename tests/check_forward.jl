@@ -1,18 +1,19 @@
+push!(LOAD_PATH,"../src")
 using ADCME
 using ADTomo
 using PyCall
-using Serialization
+using CSV
 using DataFrames
 using HDF5
 
-folder = "readin_data/area3_2/"; prange = 2; srange = 5
+folder = "readin_data/1/"; prange = 2; srange = 5
 rfile = open(folder * "range.txt","r")
 m = parse(Int16,readline(rfile)); n = parse(Int16,readline(rfile))
 l = parse(Int16,readline(rfile)); h = parse(Float16,readline(rfile))
 pvs = parse(Float64,readline(rfile))
 
-allsta = deserialize(folder * "allsta.jls")
-alleve = deserialize(folder * "alleve.jls")
+allsta = CSV.read(folder * "allsta.csv",DataFrame)
+alleve = CSV.read(folder * "alleve.csv",DataFrame)
 numsta = size(allsta,1); numeve = size(alleve,1)
 
 fvel0_p = h5read(folder * "1D_fvel0_p.h5","data")
