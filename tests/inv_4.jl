@@ -6,6 +6,7 @@ using ADCME
 using ADTomo
 using PyCall
 using PyPlot
+using CSV
 using LinearAlgebra
 using DataFrames
 using HDF5
@@ -124,7 +125,7 @@ loss = mpi_sum(loss)
 
 options = Optim.Options(iterations = 300)
 result = ADTomo.mpi_optimize(sess, loss, method="LBFGS", options = options, 
-    loc = folder * "intermediate/0/", steps = 15)
+    loc = folder * "intermediate/check_0/", steps = 15)
 if mpi_rank()==0
     @info [size(result[i]) for i = 1:length(result)]
     @info [length(result)]
