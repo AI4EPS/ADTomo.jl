@@ -178,3 +178,8 @@ CSV.write(folder * "allsta.csv",allsta)
 file = open( folder * "stations.json", "w")
 JSON.print(file, dic_save); close(file)
 h5write(folder * "eveid.h5", "data", eveid_new)
+
+rfile = open(folder * "range.txt","w")
+println(rfile,m);println(rfile,n);println(rfile,l);println(rfile,h)
+println(rfile,dx);println(rfile,dy);println(rfile,dz)
+close(rfile)
