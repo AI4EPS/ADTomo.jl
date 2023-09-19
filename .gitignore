@@ -3,3 +3,4 @@ build/
 .vscode/settings.json
 tests/seismic_data
 tests/readin_data
+tests/readin_data_old
