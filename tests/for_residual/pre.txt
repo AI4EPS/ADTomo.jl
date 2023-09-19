@@ -1,0 +1,12 @@
+in julia
+       using HDF5
+       p = h5read("readin_data/3/sta_ratio_p.h5")
+       file_name = "p.txt"
+       file = open(file_name, "w")
+       for row in eachrow(p)
+           write(file, join(row, ','))
+           write(file, '\n')  # 换行
+       end
+
+awk -F ',' '{print $4 " " $5}' readin_data/3/allsta.csv > 1.txt
+paste -d ' ' 1.txt p.txt > for_p.txt
