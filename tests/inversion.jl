@@ -5,11 +5,10 @@ using ADTomo
 using PyCall
 using PyPlot
 using CSV
-using LinearAlgebra
 using DataFrames
 using HDF5
+using LinearAlgebra
 using JSON
-using Dates
 using Random
 using Optim
 using LineSearches
@@ -19,40 +18,47 @@ mpi_init()
 rank = mpi_rank()
 nproc = mpi_size()
 
-folder = "readin_data/discrete/len_2/"
-prange = 2.5; srange = 5
-rfile = open(folder * "range.txt","r")
+prange = 1.5; srange = 3
+rfile = open("readin_data/range.txt","r")
 m = parse(Int,readline(rfile)); n = parse(Int,readline(rfile))
 l = parse(Int,readline(rfile)); h = parse(Float64,readline(rfile))
 dx = parse(Int,readline(rfile)); dy = parse(Int,readline(rfile)); dz = parse(Int,readline(rfile))
 
+folder = "readin_data/sta_eve/cluster_all/"
 allsta = CSV.read(folder * "allsta.csv",DataFrame)
 alleve = CSV.read(folder * "alleve.csv",DataFrame)
 numsta = size(allsta,1); numeve = size(alleve,1)
-uobs_p = h5read(folder * "for_P/uobs_p.h5","matrix")
-qua_p = h5read(folder * "for_P/qua_p.h5","matrix")
+folder = "readin_data/velocity/vel_2/"
+vel0 = h5read(folder * "vel0_p.h5","data")
+folder = "readin_data/store/all/2/"
+uobs = h5read(folder * "for_P/uobs_p.h5","matrix")
+qua = h5read(folder * "for_P/qua_p.h5","matrix")
 
 allsta = allsta[rank+1:nproc:numsta,:]
-uobs_p = uobs_p[rank+1:nproc:numsta,:]
-qua_p = qua_p[rank+1:nproc:numsta,:]
+uobs = uobs[rank+1:nproc:numsta,:]
+qua = qua[rank+1:nproc:numsta,:]
 numsta = size(allsta,1)
 @show rank, nproc, numsta
-
-vel0_p = h5read(folder * "for_P/1D_vel0_p.h5","data")
+#
+var_change = Variable(zero(vel0))
+fvar_ = 2*sigmoid(var_change)-1 + vel0
+fvar = mpi_bcast(fvar_)
+#=
 fvel0 = zeros(Float64,l)
 for i = 1:l
-    fvel0[i] = 1/vel0_p[1,1,i]
+    fvel0[i] = 1/vel0[1,1,i]
 end
 fvel = Variable(fvel0)
 fvar_ = reshape(repeat(fvel,m*n),(m,n,l))
 fvar = mpi_bcast(fvar_)
+=#
 
-uvar_p = PyObject[]
+uvar = PyObject[]
 for i = 1:numsta
     ix = allsta.x[i]; ixu = convert(Int64,ceil(ix)); ixd = convert(Int64,floor(ix))
     iy = allsta.y[i]; iyu = convert(Int64,ceil(iy)); iyd = convert(Int64,floor(iy))
     iz = allsta.z[i]; izu = convert(Int64,ceil(iz)); izd = convert(Int64,floor(iz))
-    slowness_u = 1/vel0_p[ixu,iyu,izu]; slowness_d = 1/vel0_p[ixu,iyu,izd]
+    slowness_u = 1/vel0[ixu,iyu,izu]; slowness_d = 1/vel0[ixu,iyu,izd]
     u0 = 1000 * ones(m,n,l)
     u0[ixu,iyu,izu] = sqrt((ix-ixu)^2+(iy-iyu)^2+(iz-izu)^2)*slowness_u*h
     u0[ixu,iyu,izd] = sqrt((ix-ixu)^2+(iy-iyu)^2+(iz-izd)^2)*slowness_d*h
@@ -62,25 +68,25 @@ for i = 1:numsta
     u0[ixd,iyu,izd] = sqrt((ix-ixd)^2+(iy-iyu)^2+(iz-izd)^2)*slowness_d*h
     u0[ixd,iyd,izu] = sqrt((ix-ixd)^2+(iy-iyd)^2+(iz-izu)^2)*slowness_u*h
     u0[ixd,iyd,izd] = sqrt((ix-ixd)^2+(iy-iyd)^2+(iz-izd)^2)*slowness_d*h
-    push!(uvar_p,eikonal3d(u0,fvar,h,m,n,l,1e-3,false))
+    push!(uvar,eikonal3d(u0,1 ./ fvar,h,m,n,l,1e-3,false))
 end
 
-caltime_p = []
+caltime = []
 for i = 1:numsta
-    timei_p = []
+    timei = []
     for j = 1:numeve
         jx = alleve.x[j]; x1 = convert(Int64,floor(jx)); x2 = convert(Int64,ceil(jx))
         jy = alleve.y[j]; y1 = convert(Int64,floor(jy)); y2 = convert(Int64,ceil(jy))
         jz = alleve.z[j]; z1 = convert(Int64,floor(jz)); z2 = convert(Int64,ceil(jz))
         
         if x1 == x2
-            tx11 = uvar_p[i][x1,y1,z1]; tx12 = uvar_p[i][x1,y1,z2]
-            tx21 = uvar_p[i][x1,y2,z1]; tx22 = uvar_p[i][x1,y2,z2]
+            tx11 = uvar[i][x1,y1,z1]; tx12 = uvar[i][x1,y1,z2]
+            tx21 = uvar[i][x1,y2,z1]; tx22 = uvar[i][x1,y2,z2]
         else
-            tx11 = (x2-jx)*uvar_p[i][x1,y1,z1] + (jx-x1)*uvar_p[i][x2,y1,z1]
-            tx12 = (x2-jx)*uvar_p[i][x1,y1,z2] + (jx-x1)*uvar_p[i][x2,y1,z2]
-            tx21 = (x2-jx)*uvar_p[i][x1,y2,z1] + (jx-x1)*uvar_p[i][x2,y2,z1]
-            tx22 = (x2-jx)*uvar_p[i][x1,y2,z2] + (jx-x1)*uvar_p[i][x2,y2,z2]
+            tx11 = (x2-jx)*uvar[i][x1,y1,z1] + (jx-x1)*uvar[i][x2,y1,z1]
+            tx12 = (x2-jx)*uvar[i][x1,y1,z2] + (jx-x1)*uvar[i][x2,y1,z2]
+            tx21 = (x2-jx)*uvar[i][x1,y2,z1] + (jx-x1)*uvar[i][x2,y2,z1]
+            tx22 = (x2-jx)*uvar[i][x1,y2,z2] + (jx-x1)*uvar[i][x2,y2,z2]
         end
         if y1 == y2
             txy1 = tx11; txy2 = tx12
@@ -93,18 +99,18 @@ for i = 1:numsta
         else
             txyz = (z2-jz)*txy1 + (jz-z1)*txy2
         end
-        push!(timei_p,txyz)
+        push!(timei,txyz)
     end
-    push!(caltime_p,timei_p)
+    push!(caltime,timei)
 end
 
 sum_loss_time = PyObject[]
 for i = 1:numeve
     for j = 1:numsta
-        if uobs_p[j,i] == -1
+        if uobs[j,i] == -1
             continue
         end
-        push!(sum_loss_time, qua_p[j,i]*(uobs_p[j,i]-caltime_p[j][i])^2)
+        push!(sum_loss_time, qua[j,i]*(uobs[j,i]-caltime[j][i])^2)
     end
 end
 
@@ -116,7 +122,7 @@ filter = tf.constant(laplace_wei,shape=(3,3,3,1,1),dtype=tf.float64)
 
 vel = tf.reshape(fvar,(1,m,n,l,1))
 cvel = tf.nn.conv3d(vel,filter,strides = (1,1,1,1,1),padding="VALID")
-loss = sum(sum_loss_time)# + 0.0005 * sum(abs(cvel))
+loss = sum(sum_loss_time) + 0.0005 * sum(abs(cvel))
 sess = Session(); init(sess)
 
 loss = mpi_sum(loss)
@@ -124,10 +130,9 @@ loss = mpi_sum(loss)
 
 options = Optim.Options(iterations = 300)
 result = ADTomo.mpi_optimize(sess, loss, method="LBFGS", options = options, 
-    loc = folder * "intermediate/inv_0/", steps = 400)
+    loc = folder * "intermediate/", steps = 5)
 if mpi_rank()==0
     @info [size(result[i]) for i = 1:length(result)]
     @info [length(result)]
-    #h5write(folder * "output/inv_P_3.h5","data",result[1])
 end
 mpi_finalize()
