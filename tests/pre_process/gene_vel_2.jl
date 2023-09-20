@@ -1,7 +1,7 @@
 using HDF5
 
-folder = "../readin_data/discrete/len_2_cl/"
-file = folder * "step_1/intermediate/iter_30.h5"
+folder = "../readin_data/discrete/len_2_4/"
+file = folder * "step_1/intermediate_P/iter_30.h5"
 fvel = h5read(file,"data")
 
 rfile = open(folder * "range.txt","r")

@@ -6,72 +6,78 @@ using CSV
 using DataFrames
 using HDF5
 
-folder = "readin_data/3/"; prange = 2; srange = 5
-rfile = open(folder * "range.txt","r")
+prange = 1.5; srange = 3
+rfile = open("readin_data/range.txt", "r")
 m = parse(Int16,readline(rfile)); n = parse(Int16,readline(rfile))
 l = parse(Int16,readline(rfile)); h = parse(Float16,readline(rfile))
-pvs = parse(Float64,readline(rfile))
+dx = parse(Int,readline(rfile)); dy = parse(Int,readline(rfile)); dz = parse(Int,readline(rfile))
 
+folder = "readin_data/sta_eve/cluster_all/"
 allsta = CSV.read(folder * "allsta.csv",DataFrame)
 alleve = CSV.read(folder * "alleve.csv",DataFrame)
 numsta = size(allsta,1); numeve = size(alleve,1)
-
-fvel0_p = h5read(folder * "1D_fvel0_p.h5","data")
-fvel0_s = h5read(folder * "1D_fvel0_s.h5","data")
-scaltime_p = h5read(folder * "for_P/scaltime_p.h5","matrix")
-scaltime_s = h5read(folder * "for_S/scaltime_s.h5","matrix")
+folder = "readin_data/velocity/vel_2/"
+vel0_p = h5read(folder * "vel0_p.h5","data")
+vel0_s = h5read(folder * "vel0_s.h5","data")
+folder = "readin_data/store/all/2/"
 uobs_p = h5read(folder * "for_P/uobs_p.h5","matrix")
 uobs_s = h5read(folder * "for_S/uobs_s.h5","matrix")
 
-len = 5; fvel_p = ones(m,n,l); fvel_s = ones(m,n,l)
+len = 5
 for i = 0:m-1
     for j = 0:n-1
         for k = 0:l-1
-            ii = (i - i%len)/len
-            jj = (j - j%len)/len
-            kk = (k - k%len)/len
-            if (ii + jj + kk)%2 == 0
-                fvel_p[i+1,j+1,k+1] = fvel0_p[i+1,j+1,k+1] / 1.2
-                fvel_s[i+1,j+1,k+1] = fvel0_s[i+1,j+1,k+1] / 1.2
+            ii = (i-i%len)/len
+            jj = (j-j%len)/len
+            kk = (k-k%len)/len
+            if (ii+jj+kk)%2 ==0
+                vel0_p[i,j,k] = vel0_p[i,j,k] * 1.2
+                vel0_s[i,j,k] = vel0_s[i,j,k] * 1.2
             else
-                fvel_p[i+1,j+1,k+1] = fvel0_p[i+1,j+1,k+1] / 0.8
-                fvel_s[i+1,j+1,k+1] = fvel0_s[i+1,j+1,k+1] / 0.8
+                vel0_p[i,j,k] = vel0_p[i,j,k] * 0.8
+                vel0_s[i,j,k] = vel0_s[i,j,k] * 1.2
             end
         end
     end
 end
+fvel_p = 1 ./ vel0_p; fvel_s = 1 ./ vel0_s
+folder = "readin_data/velocity/checker/"
+h5write(folder * "vel_2_p.h5",fvel_p)
+h5write(folder * "vel_2_s.h5",fvel_s)
 
 u_p = PyObject[]; u_s = PyObject[]
 for i = 1:numsta
     ix = allsta.x[i]; ixu = convert(Int64,ceil(ix)); ixd = convert(Int64,floor(ix))
     iy = allsta.y[i]; iyu = convert(Int64,ceil(iy)); iyd = convert(Int64,floor(iy))
     iz = allsta.z[i]; izu = convert(Int64,ceil(iz)); izd = convert(Int64,floor(iz))
-    
+    slowness_pu = fvel_p[ixu,iyu,izu]; slowness_pd = fvel_p[ixu,iyu,izd]
+    slowness_su = fvel_s[ixu,iyu,izu]; slowness_sd = fvel_s[ixu,iyu,izd]
+
     u0 = 1000 * ones(m,n,l)
-    u0[ixu,iyu,izu] = sqrt((ix-ixu)^2+(iy-iyu)^2+(iz-izu)^2)*fvel_p[ixu,iyu,izu]
-    u0[ixu,iyu,izd] = sqrt((ix-ixu)^2+(iy-iyu)^2+(iz-izd)^2)*fvel_p[ixu,iyu,izd]
-    u0[ixu,iyd,izu] = sqrt((ix-ixu)^2+(iy-iyd)^2+(iz-izu)^2)*fvel_p[ixu,iyd,izu]
-    u0[ixu,iyd,izd] = sqrt((ix-ixu)^2+(iy-iyd)^2+(iz-izd)^2)*fvel_p[ixu,iyd,izd]
-    u0[ixd,iyu,izu] = sqrt((ix-ixd)^2+(iy-iyu)^2+(iz-izu)^2)*fvel_p[ixd,iyu,izu]
-    u0[ixd,iyu,izd] = sqrt((ix-ixd)^2+(iy-iyu)^2+(iz-izd)^2)*fvel_p[ixd,iyu,izd]
-    u0[ixd,iyd,izu] = sqrt((ix-ixd)^2+(iy-iyd)^2+(iz-izu)^2)*fvel_p[ixd,iyd,izu]
-    u0[ixd,iyd,izd] = sqrt((ix-ixd)^2+(iy-iyd)^2+(iz-izd)^2)*fvel_p[ixd,iyd,izd]
+    u0[ixu,iyu,izu] = sqrt((ix-ixu)^2+(iy-iyu)^2+(iz-izu)^2)*slowness_pu*h
+    u0[ixu,iyu,izd] = sqrt((ix-ixu)^2+(iy-iyu)^2+(iz-izd)^2)*slowness_pd*h
+    u0[ixu,iyd,izu] = sqrt((ix-ixu)^2+(iy-iyd)^2+(iz-izu)^2)*slowness_pu*h
+    u0[ixu,iyd,izd] = sqrt((ix-ixu)^2+(iy-iyd)^2+(iz-izd)^2)*slowness_pd*h
+    u0[ixd,iyu,izu] = sqrt((ix-ixd)^2+(iy-iyu)^2+(iz-izu)^2)*slowness_pu*h
+    u0[ixd,iyu,izd] = sqrt((ix-ixd)^2+(iy-iyu)^2+(iz-izd)^2)*slowness_pd*h
+    u0[ixd,iyd,izu] = sqrt((ix-ixd)^2+(iy-iyd)^2+(iz-izu)^2)*slowness_pu*h
+    u0[ixd,iyd,izd] = sqrt((ix-ixd)^2+(iy-iyd)^2+(iz-izd)^2)*slowness_pd*h
     push!(u_p,eikonal3d(u0,fvel_p,h,m,n,l,1e-3,false))
 
     u0 = 1000 * ones(m,n,l)
-    u0[ixu,iyu,izu] = sqrt((ix-ixu)^2+(iy-iyu)^2+(iz-izu)^2)*fvel_s[ixu,iyu,izu]
-    u0[ixu,iyu,izd] = sqrt((ix-ixu)^2+(iy-iyu)^2+(iz-izd)^2)*fvel_s[ixu,iyu,izd]
-    u0[ixu,iyd,izu] = sqrt((ix-ixu)^2+(iy-iyd)^2+(iz-izu)^2)*fvel_s[ixu,iyd,izu]
-    u0[ixu,iyd,izd] = sqrt((ix-ixu)^2+(iy-iyd)^2+(iz-izd)^2)*fvel_s[ixu,iyd,izd]
-    u0[ixd,iyu,izu] = sqrt((ix-ixd)^2+(iy-iyu)^2+(iz-izu)^2)*fvel_s[ixd,iyu,izu]
-    u0[ixd,iyu,izd] = sqrt((ix-ixd)^2+(iy-iyu)^2+(iz-izd)^2)*fvel_s[ixd,iyu,izd]
-    u0[ixd,iyd,izu] = sqrt((ix-ixd)^2+(iy-iyd)^2+(iz-izu)^2)*fvel_s[ixd,iyd,izu]
-    u0[ixd,iyd,izd] = sqrt((ix-ixd)^2+(iy-iyd)^2+(iz-izd)^2)*fvel_s[ixd,iyd,izd]
-    push!(u_s,eikonal3d(u0,fvel_s,h,m,n,l,1e-3,false))
+    u0[ixu,iyu,izu] = sqrt((ix-ixu)^2+(iy-iyu)^2+(iz-izu)^2)*slowness_su*h
+    u0[ixu,iyu,izd] = sqrt((ix-ixu)^2+(iy-iyu)^2+(iz-izd)^2)*slowness_sd*h
+    u0[ixu,iyd,izu] = sqrt((ix-ixu)^2+(iy-iyd)^2+(iz-izu)^2)*slowness_su*h
+    u0[ixu,iyd,izd] = sqrt((ix-ixu)^2+(iy-iyd)^2+(iz-izd)^2)*slowness_sd*h
+    u0[ixd,iyu,izu] = sqrt((ix-ixd)^2+(iy-iyu)^2+(iz-izu)^2)*slowness_su*h
+    u0[ixd,iyu,izd] = sqrt((ix-ixd)^2+(iy-iyu)^2+(iz-izd)^2)*slowness_sd*h
+    u0[ixd,iyd,izu] = sqrt((ix-ixd)^2+(iy-iyd)^2+(iz-izu)^2)*slowness_su*h
+    u0[ixd,iyd,izd] = sqrt((ix-ixd)^2+(iy-iyd)^2+(iz-izd)^2)*slowness_sd*h
+    push!(u_s,eikonal3d(u0,fvel_p,h,m,n,l,1e-3,false))
 end
+
 sess = Session(); init(sess)
 u1_p = run(sess,u_p); u1_s = run(sess,u_s)
-
 caltime_p = ones(numsta,numeve); caltime_s = ones(numsta,numeve)
 for i = 1:numsta
     for j = 1:numeve
@@ -142,5 +148,6 @@ for i = 1:numeve
     end
 end
 
-h5write(folder * "for_P/ucheck_p_1.h5","matrix",ucheck_p)
-h5write(folder * "for_S/ucheck_s_1.h5","matrix",ucheck_s)
+folder = "readin_data/store/all/2/"
+h5write(folder * "for_P/ucheck_p.h5","matrix",ucheck_p)
+h5write(folder * "for_S/ucheck_s.h5","matrix",ucheck_s)

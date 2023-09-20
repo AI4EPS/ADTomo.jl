@@ -1,6 +1,6 @@
 using HDF5
 
-folder = "../readin_data/discrete/len_1/"
+folder = "../readin_data/"
 rfile = open(folder * "range.txt","r")
 m = parse(Int,readline(rfile)); n = parse(Int,readline(rfile))
 l = parse(Int,readline(rfile)); h = parse(Float64,readline(rfile))
@@ -17,7 +17,7 @@ vel_s = [1.50,2.40,2.78,3.18,3.40,3.98,4.52]
 nl = 1; nvel = vel_p[nl] * veltimes_p
 for i = 1:l
     if nl < 7 && i*h-dz >= vel_h[nl+1]
-        nl += 1
+        global nl += 1
         global nvel = vel_p[nl] * veltimes_p
     end
     fvel0_p[:,:,i] .= 1/nvel
@@ -26,14 +26,12 @@ end
 nl = 1; nvel = vel_s[nl] * veltimes_s
 for i = 1:l
     if nl < 7 && i*h-dz >= vel_h[nl+1]
-        nl += 1
+        global nl += 1
         global nvel = vel_s[nl] * veltimes_s
     end
     fvel0_s[:,:,i] .= 1/nvel
     vel0_s[:,:,i] .= nvel
 end
 
-h5write(folder * "for_P/1D_fvel0_p.h5","data",fvel0_p)
-h5write(folder * "for_S/1D_fvel0_s.h5","data",fvel0_s)
-h5write(folder * "for_P/1D_vel0_p.h5","data",vel0_p)
-h5write(folder * "for_S/1D_vel0_s.h5","data",vel0_s)
+h5write(folder * "velocity/vel_0/vel0_p.h5","data",vel0_p)
+h5write(folder * "velocity/vel_0/vel0_s.h5","data",vel0_s)
