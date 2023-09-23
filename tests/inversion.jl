@@ -18,7 +18,6 @@ mpi_init()
 rank = mpi_rank()
 nproc = mpi_size()
 
-prange = 1.5; srange = 3
 rfile = open("readin_data/range.txt","r")
 m = parse(Int,readline(rfile)); n = parse(Int,readline(rfile))
 l = parse(Int,readline(rfile)); h = parse(Float64,readline(rfile))
@@ -28,9 +27,9 @@ folder = "readin_data/sta_eve/cluster_all/"
 allsta = CSV.read(folder * "allsta.csv",DataFrame)
 alleve = CSV.read(folder * "alleve.csv",DataFrame)
 numsta = size(allsta,1); numeve = size(alleve,1)
-folder = "readin_data/velocity/vel_4/"
+folder = "readin_data/velocity/vel_5/"
 vel0 = h5read(folder * "vel0_p.h5","data")
-folder = "readin_data/store/all/4/"
+folder = "readin_data/store/all/5/"
 uobs = h5read(folder * "for_P/uobs_p.h5","matrix")
 qua = h5read(folder * "for_P/qua_p.h5","matrix")
 
@@ -39,11 +38,11 @@ uobs = uobs[rank+1:nproc:numsta,:]
 qua = qua[rank+1:nproc:numsta,:]
 numsta = size(allsta,1)
 #@show rank, nproc, numsta
-#=
+
 var_change = Variable(zero(vel0))
 fvar_ = 2*sigmoid(var_change)-1 + vel0
 fvar = mpi_bcast(fvar_)
-=#
+#=
 fvel0 = zeros(Float64,l)
 for i = 1:l
     fvel0[i] = vel0[1,1,i]
@@ -51,7 +50,7 @@ end
 fvel = Variable(fvel0)
 fvar_ = reshape(repeat(fvel,m*n),(m,n,l))
 fvar = mpi_bcast(fvar_)
-#
+=#
 
 uvar = PyObject[]
 for i = 1:numsta
@@ -122,11 +121,12 @@ filter = tf.constant(laplace_wei,shape=(3,3,3,1,1),dtype=tf.float64)
 vel = tf.reshape(fvar,(1,m,n,l,1))
 cvel = tf.nn.conv3d(vel,filter,strides = (1,1,1,1,1),padding="VALID")
 loss = sum(sum_loss_time) + 10 * sum(abs(1 ./ fvel- 1 ./ fvel0))
-=#
+#
 f1 = tf.concat([tf.constant([2.0]), fvel], axis=0)
 f2 = tf.concat([fvel, tf.constant([10.0])], axis=0)
 com_1 = tf.math.less(f2,f1); count_1 = tf.reduce_sum(tf.cast(com_1,tf.float64))
 com_2 = tf.math.equal(f2,f1); count_2 = tf.reduce_sum(tf.cast(com_2,tf.float64))
+=#
 loss = sum(sum_loss_time) #+ count_1 - count_2
 sess = Session(); init(sess)
 
@@ -135,7 +135,7 @@ loss = mpi_sum(loss)
 
 options = Optim.Options(iterations = 300)
 result = ADTomo.mpi_optimize(sess, loss, method="LBFGS", options = options, 
-    loc = folder * "1D_case_3/", steps = 500)
+    loc = folder * "inv_0_p/", steps = 5)
 if mpi_rank()==0
     @info [size(result[i]) for i = 1:length(result)]
     @info [length(result)]
