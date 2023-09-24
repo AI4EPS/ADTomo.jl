@@ -26,7 +26,7 @@ dic_sta = JSON.parse(file); close(file)
 eveid = h5read(folder * "eveid.h5","data")
 folder = "readin_data/velocity/vel_6/"
 vel_p = h5read(folder * "vel0_p.h5","data")
-vel_s = h5read(folder * "vel0_s.h5","data")
+vel_s = h5read(folder * "vel0_s.h5","data") .* 1.008
 folder = "readin_data/store/all/6/"
 
 u_p = PyObject[]; u_s = PyObject[]; fvel_p = 1 ./ vel_p; fvel_s = 1 ./ vel_s
@@ -202,7 +202,7 @@ plt.title("Histogram_P");plt.savefig(folder * "for_P/hist_p_0.png")
 plt.figure(); plt.hist(delt_s,bins=8000,edgecolor="royalblue",color="skyblue"); 
 plt.xlabel("Residual"); plt.ylabel("Frequency"); plt.xlim(-srange,srange)
 plt.title("Histogram_S");plt.savefig(folder * "for_S/hist_s_0.png")
-
+#
 cover_p = zeros(m,n,l); cover_s=zeros(m,n,l)
 for i = 1:numeve
     for j = 1:numsta
@@ -269,3 +269,4 @@ h5write(folder * "for_P/eve_ratio_p.h5","data",eve_ratio_p)
 h5write(folder * "for_P/sta_ratio_p.h5","data",sta_ratio_p)
 h5write(folder * "for_S/eve_ratio_s.h5","data",eve_ratio_s)
 h5write(folder * "for_S/sta_ratio_s.h5","data",sta_ratio_s)
+#
