@@ -9,13 +9,13 @@ using Dates
 using PyPlot
 using JSON
 
-folder = "readin_data/discrete/len_1/"
 prange = 2.5; srange = 5
-rfile = open(folder * "range.txt","r")
+rfile = open("readin_data/range.txt","r")
 m = parse(Int,readline(rfile)); n = parse(Int,readline(rfile))
 l = parse(Int,readline(rfile)); h = parse(Float64,readline(rfile))
 dx = parse(Int,readline(rfile)); dy = parse(Int,readline(rfile)); dz = parse(Int,readline(rfile))
 
+folder = "readin_data/sta_eve/cluster_all/"
 stations = CSV.read("seismic_data/BayArea/obspy/stations.csv", DataFrame)
 events = CSV.read("seismic_data/BayArea/obspy/catalog.csv", DataFrame)
 allsta = CSV.read(folder * "allsta.csv",DataFrame)
@@ -24,8 +24,10 @@ numsta = size(allsta,1); numeve = size(alleve,1)
 file = open(folder * "stations.json", "r")
 dic_sta = JSON.parse(file); close(file)
 eveid = h5read(folder * "eveid.h5","data")
-vel_p = h5read(folder * "for_P/1D_vel0_p.h5","data")
-vel_s = h5read(folder * "for_S/1D_vel0_s.h5","data")
+folder = "readin_data/velocity/vel_6/"
+vel_p = h5read(folder * "vel0_p.h5","data")
+vel_s = h5read(folder * "vel0_s.h5","data")
+folder = "readin_data/store/all/6/"
 
 u_p = PyObject[]; u_s = PyObject[]; fvel_p = 1 ./ vel_p; fvel_s = 1 ./ vel_s
 for i = 1:numsta
@@ -179,6 +181,20 @@ for i = 1:numeve
         end
     end
 end
+print(numbig_p," ",numsmall_p,'\n',numbig_s," ",numsmall_s,'\n')
+sum_p = 0
+for delt in delt_p
+    if abs(delt) < prange
+        global sum_p += delt^2
+    end
+end
+sum_s = 0
+for delt in delt_s
+    if abs(delt) < srange
+        global sum_s += delt^2
+    end
+end
+print(sum_p," ",sum_s,'\n')
 sta_ratio_p = ones(numsta); eve_ratio_p = ones(numeve)
 sta_ratio_s = ones(numsta); eve_ratio_s = ones(numeve)
 for i = 1:numsta
@@ -190,10 +206,10 @@ for i = 1:numeve
     eve_ratio_s[i] = (eve_record_s[i,1]-eve_record_s[i,2]) / (eve_record_s[i,1]+eve_record_s[i,2])
 end
 
-plt.figure(); plt.hist(delt_p,bins=10000)
+plt.figure(); plt.hist(delt_p,bins=5000,edgecolor="royalblue",color="skyblue")
 plt.xlabel("Residual"); plt.ylabel("Frequency"); plt.xlim(-prange,prange)
 plt.title("Histogram_P");plt.savefig(folder * "for_P/hist_p_0.png")
-plt.figure(); plt.hist(delt_s,bins=10000); 
+plt.figure(); plt.hist(delt_s,bins=8000,edgecolor="royalblue",color="skyblue"); 
 plt.xlabel("Residual"); plt.ylabel("Frequency"); plt.xlim(-srange,srange)
 plt.title("Histogram_S");plt.savefig(folder * "for_S/hist_s_0.png")
 
@@ -229,19 +245,31 @@ for i = 1:m
 end
 
 figure(figsize=(20,20))
-for i = 1:25
+for i = 1:min(25,l)
     subplot(5,5,i)
-    pcolormesh(cover_p[:,:,i])
+    pcolormesh(cover_p[:,:,i],cmap="afmhot_r")
     colorbar()
 end
 savefig(folder * "for_P/coverage_p.png")
 figure(figsize=(20,20))
-for i = 1:25
+for i = 1:min(25,l)
     subplot(5,5,i)
-    pcolormesh(cover_s[:,:,i])
+    pcolormesh(cover_s[:,:,i],cmap="afmhot_r")
     colorbar()
 end
 savefig(folder * "for_S/coverage_s.png")
+for i = 1:min(25,l)
+    figure(figsize=(5,5))
+    pcolormesh(cover_p[:,:,i],cmap="afmhot_r")
+    colorbar()
+    savefig(folder * "for_P/coverage/layer_$i.png")
+    close()
+    figure(figsize=(5,5))
+    pcolormesh(cover_s[:,:,i],cmap="afmhot_r")
+    colorbar()
+    savefig(folder * "for_S/coverage/layer_$i.png")
+    close()
+end
 
 h5write(folder * "for_P/uobs_p.h5","matrix",uobs_p)
 h5write(folder * "for_S/uobs_s.h5","matrix",uobs_s)
