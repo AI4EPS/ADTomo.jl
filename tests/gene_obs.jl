@@ -9,7 +9,7 @@ using Dates
 using PyPlot
 using JSON
 
-prange = 2.5; srange = 5
+prange = 1.5; srange = 3
 rfile = open("readin_data/range.txt","r")
 m = parse(Int,readline(rfile)); n = parse(Int,readline(rfile))
 l = parse(Int,readline(rfile)); h = parse(Float64,readline(rfile))
@@ -145,8 +145,8 @@ for i = 1:numeve
 end
 
 delt_p = []; delt_s = []; numbig_p = 0; numsmall_p = 0; numbig_s = 0; numsmall_s = 0
-sta_record_p = zeros(numsta,2); eve_record_p = zeros(numeve,2)
-sta_record_s = zeros(numsta,2); eve_record_s = zeros(numeve,2)
+sta_record_p = zeros(numsta,2); eve_record_p = zeros(numeve,2); sum_p = 0
+sta_record_s = zeros(numsta,2); eve_record_s = zeros(numeve,2); sum_s = 0
 for i = 1:numeve
     for j = 1:numsta
         if uobs_p[j,i] != -1
@@ -160,6 +160,7 @@ for i = 1:numeve
                     global numsmall_p += 1
                     sta_record_p[j,2] += 1; eve_record_p[i,2] += 1
                 end
+                global sum_p += qua_p[j,i] * (uobs_p[j,i]-scaltime_p[j,i])^2
             else 
                 uobs_p[j,i] = -1
             end
@@ -175,6 +176,7 @@ for i = 1:numeve
                     global numsmall_s += 1
                     sta_record_s[j,2] += 1; eve_record_s[i,2] += 1
                 end
+                global sum_s += qua_s[j,i] * (uobs_s[j,i]-scaltime_s[j,i])^2
             else 
                 uobs_s[j,i] = -1
             end
@@ -182,18 +184,6 @@ for i = 1:numeve
     end
 end
 print(numbig_p," ",numsmall_p,'\n',numbig_s," ",numsmall_s,'\n')
-sum_p = 0
-for delt in delt_p
-    if abs(delt) < prange
-        global sum_p += delt^2
-    end
-end
-sum_s = 0
-for delt in delt_s
-    if abs(delt) < srange
-        global sum_s += delt^2
-    end
-end
 print(sum_p," ",sum_s,'\n')
 sta_ratio_p = ones(numsta); eve_ratio_p = ones(numeve)
 sta_ratio_s = ones(numsta); eve_ratio_s = ones(numeve)
