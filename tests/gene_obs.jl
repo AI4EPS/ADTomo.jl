@@ -15,7 +15,7 @@ m = parse(Int,readline(rfile)); n = parse(Int,readline(rfile))
 l = parse(Int,readline(rfile)); h = parse(Float64,readline(rfile))
 dx = parse(Int,readline(rfile)); dy = parse(Int,readline(rfile)); dz = parse(Int,readline(rfile))
 
-folder = "readin_data/sta_eve/cluster_all/"
+folder = "readin_data/sta_eve/cluster_new/"
 stations = CSV.read("seismic_data/BayArea/obspy/stations.csv", DataFrame)
 events = CSV.read("seismic_data/BayArea/obspy/catalog.csv", DataFrame)
 allsta = CSV.read(folder * "allsta.csv",DataFrame)
@@ -24,10 +24,10 @@ numsta = size(allsta,1); numeve = size(alleve,1)
 file = open(folder * "stations.json", "r")
 dic_sta = JSON.parse(file); close(file)
 eveid = h5read(folder * "eveid.h5","data")
-folder = "readin_data/velocity/vel_6/"
-vel_p = h5read(folder * "vel0_p.h5","data")
-vel_s = h5read(folder * "vel0_s.h5","data") .* 1.008
-folder = "readin_data/store/all/6/"
+folder = "readin_data/velocity/vel_GIL7/"
+vel_p = h5read(folder * "vel0_p.h5","data") .* 1.045
+vel_s = h5read(folder * "vel0_s.h5","data") .* 1.11
+folder = "readin_data/store/new/GIL7/"
 
 u_p = PyObject[]; u_s = PyObject[]; fvel_p = 1 ./ vel_p; fvel_s = 1 ./ vel_s
 for i = 1:numsta
@@ -147,6 +147,7 @@ end
 delt_p = []; delt_s = []; numbig_p = 0; numsmall_p = 0; numbig_s = 0; numsmall_s = 0
 sta_record_p = zeros(numsta,2); eve_record_p = zeros(numeve,2); sum_p = 0
 sta_record_s = zeros(numsta,2); eve_record_s = zeros(numeve,2); sum_s = 0
+sta_res_p = zeros(numsta); sta_res_s = zeros(numsta); eve_res_p = zeros(numeve); eve_res_s = zeros(numeve)
 for i = 1:numeve
     for j = 1:numsta
         if uobs_p[j,i] != -1
@@ -161,6 +162,7 @@ for i = 1:numeve
                     sta_record_p[j,2] += 1; eve_record_p[i,2] += 1
                 end
                 global sum_p += qua_p[j,i] * (uobs_p[j,i]-scaltime_p[j,i])^2
+                sta_res_p[j] += uobs_p[j,i]-scaltime_p[j,i]; eve_res_p[i] += uobs_p[j,i]-scaltime_p[j,i]
             else 
                 uobs_p[j,i] = -1
             end
@@ -177,6 +179,7 @@ for i = 1:numeve
                     sta_record_s[j,2] += 1; eve_record_s[i,2] += 1
                 end
                 global sum_s += qua_s[j,i] * (uobs_s[j,i]-scaltime_s[j,i])^2
+                sta_res_s[j] += uobs_s[j,i]-scaltime_s[j,i]; eve_res_s[i] += uobs_s[j,i]-scaltime_s[j,i]
             else 
                 uobs_s[j,i] = -1
             end
@@ -196,10 +199,10 @@ for i = 1:numeve
     eve_ratio_s[i] = (eve_record_s[i,1]-eve_record_s[i,2]) / (eve_record_s[i,1]+eve_record_s[i,2])
 end
 
-plt.figure(); plt.hist(delt_p,bins=5000,edgecolor="royalblue",color="skyblue")
+plt.figure(); plt.hist(delt_p,bins=6000,edgecolor="royalblue",color="skyblue");
 plt.xlabel("Residual"); plt.ylabel("Frequency"); plt.xlim(-prange,prange)
 plt.title("Histogram_P");plt.savefig(folder * "for_P/hist_p_0.png")
-plt.figure(); plt.hist(delt_s,bins=8000,edgecolor="royalblue",color="skyblue"); 
+plt.figure(); plt.hist(delt_s,bins=5000,edgecolor="royalblue",color="skyblue"); 
 plt.xlabel("Residual"); plt.ylabel("Frequency"); plt.xlim(-srange,srange)
 plt.title("Histogram_S");plt.savefig(folder * "for_S/hist_s_0.png")
 #
@@ -265,8 +268,36 @@ h5write(folder * "for_P/uobs_p.h5","matrix",uobs_p)
 h5write(folder * "for_S/uobs_s.h5","matrix",uobs_s)
 h5write(folder * "for_P/qua_p.h5","matrix",qua_p)
 h5write(folder * "for_S/qua_s.h5","matrix",qua_s)
-h5write(folder * "for_P/eve_ratio_p.h5","data",eve_ratio_p)
-h5write(folder * "for_P/sta_ratio_p.h5","data",sta_ratio_p)
-h5write(folder * "for_S/eve_ratio_s.h5","data",eve_ratio_s)
-h5write(folder * "for_S/sta_ratio_s.h5","data",sta_ratio_s)
+file = open(folder * "for_P/residual/eve_ratio_p.txt","w")
+for value in eve_ratio_p
+    println(file, value)
+end
+file = open(folder * "for_P/residual/sta_ratio_p.txt","w")
+for value in sta_ratio_p
+    println(file, value)
+end
+file = open(folder * "for_P/residual/eve_res_p.txt","w")
+for value in eve_res_p
+    println(file, value)
+end
+file = open(folder * "for_P/residual/sta_res_p.txt","w")
+for value in sta_res_p
+    println(file, value)
+end
+file = open(folder * "for_S/residual/eve_ratio_s.txt","w")
+for value in eve_ratio_s
+    println(file, value)
+end
+file = open(folder * "for_S/residual/sta_ratio_s.txt","w")
+for value in sta_ratio_s
+    println(file, value)
+end
+file = open(folder * "for_S/residual/eve_res_s.txt","w")
+for value in eve_res_s
+    println(file, value)
+end
+file = open(folder * "for_S/residual/sta_res_s.txt","w")
+for value in sta_res_s
+    println(file, value)
+end
 #
