@@ -12,14 +12,14 @@ m = parse(Int16,readline(rfile)); n = parse(Int16,readline(rfile))
 l = parse(Int16,readline(rfile)); h = parse(Float16,readline(rfile))
 dx = parse(Int,readline(rfile)); dy = parse(Int,readline(rfile)); dz = parse(Int,readline(rfile))
 
-folder = "readin_data/sta_eve/cluster_all/"
+folder = "readin_data/sta_eve/cluster_new2/"
 allsta = CSV.read(folder * "allsta.csv",DataFrame)
 alleve = CSV.read(folder * "alleve.csv",DataFrame)
 numsta = size(allsta,1); numeve = size(alleve,1)
 folder = "readin_data/velocity/vel_2/"
 vel0_p = h5read(folder * "vel0_p.h5","data")
 vel0_s = h5read(folder * "vel0_s.h5","data")
-folder = "readin_data/store/all/2/"
+folder = "readin_data/store/new2/2/"
 uobs_p = h5read(folder * "for_P/uobs_p.h5","matrix")
 uobs_s = h5read(folder * "for_S/uobs_s.h5","matrix")
 
@@ -31,19 +31,19 @@ for i = 0:m-1
             jj = (j-j%len)/len
             kk = (k-k%len)/len
             if (ii+jj+kk)%2 ==0
-                vel0_p[i,j,k] = vel0_p[i,j,k] * 1.2
-                vel0_s[i,j,k] = vel0_s[i,j,k] * 1.2
+                vel0_p[i+1,j+1,k+1] = vel0_p[i+1,j+1,k+1] * 1.2
+                vel0_s[i+1,j+1,k+1] = vel0_s[i+1,j+1,k+1] * 1.2
             else
-                vel0_p[i,j,k] = vel0_p[i,j,k] * 0.8
-                vel0_s[i,j,k] = vel0_s[i,j,k] * 1.2
+                vel0_p[i+1,j+1,k+1] = vel0_p[i+1,j+1,k+1] * 0.8
+                vel0_s[i+1,j+1,k+1] = vel0_s[i+1,j+1,k+1] * 1.2
             end
         end
     end
 end
 fvel_p = 1 ./ vel0_p; fvel_s = 1 ./ vel0_s
-folder = "readin_data/velocity/checker/"
-h5write(folder * "vel_2_p.h5",fvel_p)
-h5write(folder * "vel_2_s.h5",fvel_s)
+folder = "readin_data/velocity/vel_2/"
+h5write(folder * "vel_check_p.h5","data",fvel_p)
+h5write(folder * "vel_check_s.h5","data",fvel_s)
 
 u_p = PyObject[]; u_s = PyObject[]
 for i = 1:numsta
@@ -148,6 +148,6 @@ for i = 1:numeve
     end
 end
 
-folder = "readin_data/store/all/2/"
+folder = "readin_data/store/new2/2/"
 h5write(folder * "for_P/ucheck_p.h5","matrix",ucheck_p)
 h5write(folder * "for_S/ucheck_s.h5","matrix",ucheck_s)
