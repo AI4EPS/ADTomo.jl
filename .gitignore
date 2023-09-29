@@ -4,3 +4,4 @@ build/
 tests/seismic_data
 tests/readin_data
 tests/readin_data_old
+tests/for_residual/BayArea
