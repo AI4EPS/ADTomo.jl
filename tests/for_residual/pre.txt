@@ -10,3 +10,8 @@ paste -d ' ' ../../../loc_e0.txt eve_res_p.txt > for_P.txt
 paste -d ' ' ../../../loc_e0.txt eve_ratio_p.txt > for_P.txt
 paste -d ' ' ../../../loc_e1.txt eve_ratio_p.txt > for_P.txt
 paste -d ' ' ../../../loc_e2.txt eve_ratio_p.txt > for_P.txt
+
+paste -d ' ' ../../../loc_s.txt sta_ratio_s.txt > for_s.txt
+paste -d ' ' ../../../loc_e0.txt eve_ratio_s.txt > for_s.txt
+paste -d ' ' ../../../loc_e1.txt eve_ratio_s.txt > for_s.txt
+paste -d ' ' ../../../loc_e2.txt eve_ratio_s.txt > for_s.txt
