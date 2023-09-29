@@ -15,7 +15,7 @@ m = parse(Int,readline(rfile)); n = parse(Int,readline(rfile))
 l = parse(Int,readline(rfile)); h = parse(Float64,readline(rfile))
 dx = parse(Int,readline(rfile)); dy = parse(Int,readline(rfile)); dz = parse(Int,readline(rfile))
 
-folder = "readin_data/sta_eve/cluster_new/"
+folder = "readin_data/sta_eve/cluster_new3/"
 stations = CSV.read("seismic_data/BayArea/obspy/stations.csv", DataFrame)
 events = CSV.read("seismic_data/BayArea/obspy/catalog.csv", DataFrame)
 allsta = CSV.read(folder * "allsta.csv",DataFrame)
@@ -24,10 +24,10 @@ numsta = size(allsta,1); numeve = size(alleve,1)
 file = open(folder * "stations.json", "r")
 dic_sta = JSON.parse(file); close(file)
 eveid = h5read(folder * "eveid.h5","data")
-folder = "readin_data/velocity/vel_GIL7/"
-vel_p = h5read(folder * "vel0_p.h5","data") .* 1.045
-vel_s = h5read(folder * "vel0_s.h5","data") .* 1.11
-folder = "readin_data/store/new/GIL7/"
+folder = "readin_data/velocity/vel_2/"
+vel_p = h5read(folder * "vel0_p.h5","data") #.* 1.075
+vel_s = h5read(folder * "vel0_s.h5","data") #.* 1.13
+folder = "readin_data/store/new3/2/"
 
 u_p = PyObject[]; u_s = PyObject[]; fvel_p = 1 ./ vel_p; fvel_s = 1 ./ vel_s
 for i = 1:numsta
@@ -240,25 +240,25 @@ end
 figure(figsize=(20,20))
 for i = 1:min(25,l)
     subplot(5,5,i)
-    pcolormesh(cover_p[:,:,i],cmap="afmhot_r")
+    pcolormesh(cover_p[:,:,i],cmap="magma_r")
     colorbar()
 end
 savefig(folder * "for_P/coverage_p.png")
 figure(figsize=(20,20))
 for i = 1:min(25,l)
     subplot(5,5,i)
-    pcolormesh(cover_s[:,:,i],cmap="afmhot_r")
+    pcolormesh(cover_s[:,:,i],cmap="magma_r")
     colorbar()
 end
 savefig(folder * "for_S/coverage_s.png")
 for i = 1:min(25,l)
     figure(figsize=(5,5))
-    pcolormesh(cover_p[:,:,i],cmap="afmhot_r")
+    pcolormesh(cover_p[:,:,i],cmap="magma_r")
     colorbar()
     savefig(folder * "for_P/coverage/layer_$i.png")
     close()
     figure(figsize=(5,5))
-    pcolormesh(cover_s[:,:,i],cmap="afmhot_r")
+    pcolormesh(cover_s[:,:,i],cmap="magma_r")
     colorbar()
     savefig(folder * "for_S/coverage/layer_$i.png")
     close()
@@ -268,36 +268,45 @@ h5write(folder * "for_P/uobs_p.h5","matrix",uobs_p)
 h5write(folder * "for_S/uobs_s.h5","matrix",uobs_s)
 h5write(folder * "for_P/qua_p.h5","matrix",qua_p)
 h5write(folder * "for_S/qua_s.h5","matrix",qua_s)
+
 file = open(folder * "for_P/residual/eve_ratio_p.txt","w")
-for value in eve_ratio_p
-    println(file, value)
+for i = 1:numeve
+    println(file, eve_ratio_p[i])
 end
+close(file)
 file = open(folder * "for_P/residual/sta_ratio_p.txt","w")
-for value in sta_ratio_p
-    println(file, value)
+for i = 1:numsta
+    println(file, sta_ratio_p[i])
 end
+close(file)
 file = open(folder * "for_P/residual/eve_res_p.txt","w")
-for value in eve_res_p
-    println(file, value)
+for i = 1:numeve
+    println(file, 2*sigmoid(eve_res_p[i]/10)-1)
 end
+close(file)
 file = open(folder * "for_P/residual/sta_res_p.txt","w")
-for value in sta_res_p
-    println(file, value)
+for i = 1:numsta
+    println(file, 2*sigmoid(sta_res_p[i]/10)-1)
 end
+close(file)
 file = open(folder * "for_S/residual/eve_ratio_s.txt","w")
-for value in eve_ratio_s
-    println(file, value)
+for i = 1:numeve
+    println(file, eve_ratio_s[i])
 end
+close(file)
 file = open(folder * "for_S/residual/sta_ratio_s.txt","w")
-for value in sta_ratio_s
-    println(file, value)
+for i = 1:numsta
+    println(file, sta_ratio_s[i])
 end
+close(file)
 file = open(folder * "for_S/residual/eve_res_s.txt","w")
-for value in eve_res_s
-    println(file, value)
+for i = 1:numeve
+    println(file, 2*sigmoid(eve_res_s[i]/10)-1)
 end
+close(file)
 file = open(folder * "for_S/residual/sta_res_s.txt","w")
-for value in sta_res_s
-    println(file, value)
+for i = 1:numsta
+    println(file, 2*sigmoid(sta_res_s[i]/10)-1)
 end
+close(file)
 #

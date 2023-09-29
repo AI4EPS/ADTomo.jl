@@ -125,13 +125,12 @@ end
 for i = 1:numeve
     alleve.x[i] += dx; alleve.y[i] += dy; alleve.z[i] += dz
 end
-
+#=
 rfile = open(folder * "range.txt","w")
 println(rfile,m);println(rfile,n);println(rfile,l);println(rfile,h)
 println(rfile,dx);println(rfile,dy);println(rfile,dz)
 close(rfile)
-
-#
+=
 CSV.write(folder * "alleve.csv",alleve)
 CSV.write(folder * "allsta.csv",allsta)
 file = open( folder * "stations.json", "w")
@@ -142,7 +141,7 @@ figure()
 scatter(alleve.y,alleve.x,label="events"); plt.legend()
 scatter(allsta.y,allsta.x,label="stations"); plt.legend()
 savefig(folder * "location.png")
-#
+=#
 
 folder = "../readin_data/sta_eve/cluster_eve/"
 eve_data = Vector{Vector{Float64}}()
@@ -150,7 +149,7 @@ for i = 1:numeve
     push!(eve_data,[alleve.x[i],alleve.y[i],alleve.z[i]])
 end
 dist_matrix = pairwise(Euclidean(), eve_data)
-eps = 1.5; min_pts = 1
+eps = 1.732; min_pts = 1
 result = dbscan(dist_matrix, eps, min_pts)
 clusters = assignments(result)
 cluster_points = Dict{Int, Vector{Int}}()
@@ -164,23 +163,24 @@ for (idx, cluster) in enumerate(clusters)
         end
     end
 end
-numeve_ = length(keys(cluster_points))
 
-newid = zeros(Int,numeve_)
+newid = Vector{Int}()
 for (cluster,points) in cluster_points
     if size(points,1) == 1
-        newid[cluster] = points[1]
+        push!(newid,points[1])
     else
-        maxpick = 0; record = 0
+        local picks = []
         for point in points
-            if alleve.picks[point] > maxpick
-                maxpick = alleve.picks[point]
-                record = point
-            end
+            push!(picks,alleve.picks[point])
         end
-        newid[cluster] = record
+        num = convert(Int,ceil(size(picks,1)/20))
+        sort_picks = sortperm(picks,rev=true)
+        for i = 1:num
+            push!(newid,points[sort_picks[i]])
+        end
     end
 end
+numeve_ = size(newid,1)
 
 eve_new = DataFrame(x=[], y=[], z=[], lon=[], lat=[])
 eveid_new = Vector{Int}()
@@ -193,7 +193,7 @@ for i = 1:numeve_
     push!(eveid_new, eveid[newid[i]])
 end
 
-#
+#=
 CSV.write(folder * "alleve.csv",eve_new)
 CSV.write(folder * "allsta.csv",allsta)
 file = open( folder * "stations.json", "w")
@@ -204,15 +204,15 @@ figure()
 scatter(eve_new.y,eve_new.x,label="events"); plt.legend()
 scatter(allsta.y,allsta.x,label="stations"); plt.legend()
 savefig(folder * "location.png")
-#
+=#
 
-folder = "../readin_data/sta_eve/cluster_all/"
+folder = "../readin_data/sta_eve/cluster_new3/"
 sta_data = Vector{Vector{Float64}}()
 for i = 1:numsta_
     push!(sta_data,[allsta.x[i],allsta.y[i],allsta.z[i]])
 end
 dist_matrix = pairwise(Euclidean(), sta_data)
-eps = 1.3; min_pts = 1
+eps = 1.414; min_pts = 1
 result = dbscan(dist_matrix, eps, min_pts)
 clusters = assignments(result)
 cluster_points = Dict{Int, Vector{Int}}()
@@ -274,8 +274,8 @@ end
 
 CSV.write(folder * "alleve.csv",eve_new)
 CSV.write(folder * "allsta.csv",sta_new)
-file = open( folder * "stations.json", "w")
-JSON.print(file, dic_save); close(file)
+file2 = open(folder * "stations.json", "w")
+JSON.print(file2, dic_save); close(file2)
 h5write(folder * "eveid.h5", "data", eveid_new)
 
 figure()
