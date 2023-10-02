@@ -23,30 +23,22 @@ m = parse(Int,readline(rfile)); n = parse(Int,readline(rfile))
 l = parse(Int,readline(rfile)); h = parse(Float64,readline(rfile))
 dx = parse(Int,readline(rfile)); dy = parse(Int,readline(rfile)); dz = parse(Int,readline(rfile))
 
-folder = "readin_data/sta_eve/cluster_new2/"
+folder = "readin_data/sta_eve/cluster_new4/"
 allsta = CSV.read(folder * "allsta.csv",DataFrame)
 alleve = CSV.read(folder * "alleve.csv",DataFrame)
 numsta = size(allsta,1); numeve = size(alleve,1)
 
 folder = "readin_data/velocity/vel_2/"
-v0 = h5read(folder * "vel0_p.h5","data")
-vel_raw = h5read("readin_data/store/new2/2/inv_P_m/intermediate/iter_15.h5","data")
+vel0 = h5read(folder * "vel0_s.h5","data")
+#=
+vel_raw = h5read("readin_data/store/new4/2/inv_P/step_6/01/intermediate/post_20.h5","data")
 vel_r = tf.reshape(vel_raw,(m,n,l))
 sess = Session(); init(sess)
-vel_tem = run(sess,vel_r)
-vel0 = ones(m,n,l)
-for i = 1:m
-    for j = 1:n
-        for k = 1:l
-            vel0[i,j,k] = 2*sigmoid(vel_tem[i,j,k]) - 1 + v0[i,j,k]
-        end
-    end
-end
-
-folder = "readin_data/store/new2/2/"
-uobs = h5read(folder * "for_P/uobs_p.h5","matrix")
-qua = h5read(folder * "for_P/qua_p.h5","matrix")
-
+vel0 = run(sess,vel_r)
+=#
+folder = "readin_data/store/new4/2/"
+uobs = h5read(folder * "for_S/ucheck_s_10.h5","matrix")
+qua = h5read(folder * "for_S/qua_s.h5","matrix")
 allsta = allsta[rank+1:nproc:numsta,:]
 uobs = uobs[rank+1:nproc:numsta,:]
 qua = qua[rank+1:nproc:numsta,:]
@@ -117,38 +109,28 @@ for i = 1:numeve
         push!(sum_loss_time, qua[j,i]*(uobs[j,i]-caltime[j][i])^2)
     end
 end
-#=Gauss
-gauss_wei = Array{Float64}(undef, 3, 3, 3)
-gauss_wei[:,:,1] = [0.0325822 0.0406902 0.00325822;0.0406902 0.0508158 0.0406902;0.0325822 0.0406902 0.00325822]
-gauss_wei[:,:,2] = [0.0406902 0.0508158 0.0406902;0.0508158 0.0634612 0.0508158;0.0406902 0.0508158 0.0406902]
-gauss_wei[:,:,3] = [0.0325822 0.0406902 0.00325822;0.0406902 0.0508158 0.0406902;0.0325822 0.0406902 0.00325822]
-filter = tf.constant(gauss_wei,shape=(3,3,3,1,1),dtype=tf.float64)
-
-vel = tf.reshape(fvar,(1,m,n,l,1))
-o_vel = fvar[2:m-1,2:n-1,2:l-1]
-cvel = tf.nn.conv3d(vel,filter,strides = (1,1,1,1,1),padding="VALID")
-n_vel = tf.reshape(cvel,(m-2,n-2,l-2))
-loss = sum(sum_loss_time) + 0.005*sum(abs(o_vel - n_vel)) + 0.005*sum(abs(fvar-vel0))
-=#
-sh1 = 35; sv1 = 7; sh2 = 17; sv2 = 3;
+#
+sh1 = 5; sv1 = 3; sh2 = 2; sv2 = 1;
 gauss_wei = ones(sh1,sh1,sv1) ./ (sh1*sh1*sv1)
 filter = tf.constant(gauss_wei,shape=(sh1,sh1,sv1,1,1),dtype=tf.float64)
 
-fvar = tf.concat([fvar[m-sh2+1:m,:,:],fvar,fvar[1:sh2,:,:]],axis=0)
-fvar = tf.concat([fvar[:,n-sh2+1:n,:],fvar,fvar[:,1:sh2,:]],axis=1)
-fvar = tf.concat([fvar[:,:,l-sv2+1:l],fvar,fvar[:,:,1:sv2]],axis=2)
-vel = tf.reshape(fvar,(1,m+sh1-1,n+sh1-1,l+sv1-1,1))
+o_vel = fvar
+o_vel = tf.concat([o_vel[m-sh2+1:m,:,:],o_vel,o_vel[1:sh2,:,:]],axis=0)
+o_vel = tf.concat([o_vel[:,n-sh2+1:n,:],o_vel,o_vel[:,1:sh2,:]],axis=1)
+o_vel = tf.concat([o_vel[:,:,l-sv2+1:l],o_vel,o_vel[:,:,1:sv2]],axis=2)
+vel = tf.reshape(o_vel,(1,m+sh1-1,n+sh1-1,l+sv1-1,1))
 
 cvel = tf.nn.conv3d(vel,filter,strides = (1,1,1,1,1),padding="VALID")
 n_vel = tf.reshape(cvel,(m,n,l))
+#
 loss = sum(sum_loss_time) + 0.005*sum(abs(fvar - n_vel))
-init(sess)
+sess = Session(); init(sess)
 loss = mpi_sum(loss)
 #@show run(sess,loss)
 
 options = Optim.Options(iterations = 100)
 result = ADTomo.mpi_optimize(sess, loss, method="LBFGS", options = options, 
-    loc = folder * "inv_P_m2/intermediate/", steps = 1)
+    loc = folder * "check_S_0.005/intermediate/", steps = 1)
 if mpi_rank()==0
     @info [size(result[i]) for i = 1:length(result)]
     @info [length(result)]

@@ -15,7 +15,7 @@ m = parse(Int,readline(rfile)); n = parse(Int,readline(rfile))
 l = parse(Int,readline(rfile)); h = parse(Float64,readline(rfile))
 dx = parse(Int,readline(rfile)); dy = parse(Int,readline(rfile)); dz = parse(Int,readline(rfile))
 
-folder = "readin_data/sta_eve/cluster_new3/"
+folder = "readin_data/sta_eve/cluster_new4/"
 stations = CSV.read("seismic_data/BayArea/obspy/stations.csv", DataFrame)
 events = CSV.read("seismic_data/BayArea/obspy/catalog.csv", DataFrame)
 allsta = CSV.read(folder * "allsta.csv",DataFrame)
@@ -27,7 +27,7 @@ eveid = h5read(folder * "eveid.h5","data")
 folder = "readin_data/velocity/vel_2/"
 vel_p = h5read(folder * "vel0_p.h5","data") #.* 1.075
 vel_s = h5read(folder * "vel0_s.h5","data") #.* 1.13
-folder = "readin_data/store/new3/2/"
+folder = "readin_data/store/new4/2/"
 
 u_p = PyObject[]; u_s = PyObject[]; fvel_p = 1 ./ vel_p; fvel_s = 1 ./ vel_s
 for i = 1:numsta
@@ -147,7 +147,6 @@ end
 delt_p = []; delt_s = []; numbig_p = 0; numsmall_p = 0; numbig_s = 0; numsmall_s = 0
 sta_record_p = zeros(numsta,2); eve_record_p = zeros(numeve,2); sum_p = 0
 sta_record_s = zeros(numsta,2); eve_record_s = zeros(numeve,2); sum_s = 0
-sta_res_p = zeros(numsta); sta_res_s = zeros(numsta); eve_res_p = zeros(numeve); eve_res_s = zeros(numeve)
 for i = 1:numeve
     for j = 1:numsta
         if uobs_p[j,i] != -1
@@ -162,7 +161,6 @@ for i = 1:numeve
                     sta_record_p[j,2] += 1; eve_record_p[i,2] += 1
                 end
                 global sum_p += qua_p[j,i] * (uobs_p[j,i]-scaltime_p[j,i])^2
-                sta_res_p[j] += uobs_p[j,i]-scaltime_p[j,i]; eve_res_p[i] += uobs_p[j,i]-scaltime_p[j,i]
             else 
                 uobs_p[j,i] = -1
             end
@@ -179,7 +177,6 @@ for i = 1:numeve
                     sta_record_s[j,2] += 1; eve_record_s[i,2] += 1
                 end
                 global sum_s += qua_s[j,i] * (uobs_s[j,i]-scaltime_s[j,i])^2
-                sta_res_s[j] += uobs_s[j,i]-scaltime_s[j,i]; eve_res_s[i] += uobs_s[j,i]-scaltime_s[j,i]
             else 
                 uobs_s[j,i] = -1
             end
@@ -279,16 +276,6 @@ for i = 1:numsta
     println(file, sta_ratio_p[i])
 end
 close(file)
-file = open(folder * "for_P/residual/eve_res_p.txt","w")
-for i = 1:numeve
-    println(file, 2*sigmoid(eve_res_p[i]/10)-1)
-end
-close(file)
-file = open(folder * "for_P/residual/sta_res_p.txt","w")
-for i = 1:numsta
-    println(file, 2*sigmoid(sta_res_p[i]/10)-1)
-end
-close(file)
 file = open(folder * "for_S/residual/eve_ratio_s.txt","w")
 for i = 1:numeve
     println(file, eve_ratio_s[i])
@@ -297,16 +284,6 @@ close(file)
 file = open(folder * "for_S/residual/sta_ratio_s.txt","w")
 for i = 1:numsta
     println(file, sta_ratio_s[i])
-end
-close(file)
-file = open(folder * "for_S/residual/eve_res_s.txt","w")
-for i = 1:numeve
-    println(file, 2*sigmoid(eve_res_s[i]/10)-1)
-end
-close(file)
-file = open(folder * "for_S/residual/sta_res_s.txt","w")
-for i = 1:numsta
-    println(file, 2*sigmoid(sta_res_s[i]/10)-1)
 end
 close(file)
 #

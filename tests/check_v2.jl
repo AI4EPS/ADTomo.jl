@@ -12,14 +12,14 @@ m = parse(Int16,readline(rfile)); n = parse(Int16,readline(rfile))
 l = parse(Int16,readline(rfile)); h = parse(Float16,readline(rfile))
 dx = parse(Int,readline(rfile)); dy = parse(Int,readline(rfile)); dz = parse(Int,readline(rfile))
 
-folder = "readin_data/sta_eve/cluster_new3/"
+folder = "readin_data/sta_eve/cluster_new4/"
 allsta = CSV.read(folder * "allsta.csv",DataFrame)
 alleve = CSV.read(folder * "alleve.csv",DataFrame)
 numsta = size(allsta,1); numeve = size(alleve,1)
 folder = "readin_data/velocity/vel_2/"
 vel0_p = h5read(folder * "vel0_p.h5","data")
 vel0_s = h5read(folder * "vel0_s.h5","data")
-folder = "readin_data/store/new3/2/"
+folder = "readin_data/store/new4/2/"
 uobs_p = h5read(folder * "for_P/uobs_p.h5","matrix")
 uobs_s = h5read(folder * "for_S/uobs_s.h5","matrix")
 
@@ -42,8 +42,8 @@ for i = 0:m-1
 end
 fvel_p = 1 ./ vel0_p; fvel_s = 1 ./ vel0_s
 folder = "readin_data/velocity/vel_2/"
-h5write(folder * "vel_check_p_10+.h5","data",vel0_p)
-h5write(folder * "vel_check_s_10+.h5","data",vel0_s)
+#h5write(folder * "vel_check_p_10+.h5","data",vel0_p)
+#h5write(folder * "vel_check_s_10+.h5","data",vel0_s)
 
 u_p = PyObject[]; u_s = PyObject[]
 for i = 1:numsta
@@ -148,6 +148,6 @@ for i = 1:numeve
     end
 end
 
-folder = "readin_data/store/new3/2/"
+folder = "readin_data/store/new4/2/"
 h5write(folder * "for_P/ucheck_p_10.h5","matrix",ucheck_p)
 h5write(folder * "for_S/ucheck_s_10.h5","matrix",ucheck_s)
