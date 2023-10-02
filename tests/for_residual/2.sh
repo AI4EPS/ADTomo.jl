@@ -5,7 +5,9 @@ gmt begin range png
     gmt grdimage @earth_relief_01m -Baf -BWSen -I+d -t25
     gmt colorbar
     gmt makecpt -Cpolar
-    gmt plot range.dat -W2p,yellow -L
-    gmt plot -Sc0.1c -Gred -t50 events.txt
-    gmt plot -St0.1c -Gblue -t50 stations.txt
+    gmt plot BayArea/range_0.dat -W2p,black -L
+    gmt plot BayArea/range_2000.dat -W2p,yellow -L
+    gmt plot BayArea/range_2007.dat -W2p,skyblue -L
+    gmt plot -Sc0.1c -Gred -t50 BayArea/events.txt
+    gmt plot -St0.1c -Gblue -t50 BayArea/stations.txt
 gmt end
