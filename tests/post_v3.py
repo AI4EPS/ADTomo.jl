@@ -21,6 +21,7 @@ with open("readin_data/range.txt", "r") as rfile:
     dx = int(rfile.readline())
     dy = int(rfile.readline())
     dz = int(rfile.readline())
+
 theta = math.radians(32)
 
 folder = "readin_data/store/new4/2/inv_S_0.1/intermediate/"
@@ -47,3 +48,15 @@ for i in range(16):
                 ny = y*math.cos(theta) + x*math.sin(theta)
                 lon, lat = proj(nx,ny,inverse=True)
                 file.write(f"{lon} {lat} {vel[i,j,k]} 122 0.2 0.2\n")
+
+''' 
+x = (k-dx)*h
+y = (j-dy)*h
+nx = x*math.cos(theta) - y*math.sin(theta)
+ny = y*math.cos(theta) + x*math.sin(theta)
+lon, lat = proj(nx,ny,inverse=True)
+print(lon,' ',lat)
+'''
+    
+    
+    
