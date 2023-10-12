@@ -55,7 +55,7 @@
 
 In this part, we do not pick arrival time manually and use Phasenet to get all traveltime data.
 
-1. choose the region, period, networks and channels by setting "congig.py" 
+1. set the region, period, networks and channels by editting "config.json" 
 2. run "download_waveform_event.py" to get all the waveforms in this set region.
 3. run "run_phasenet.py" to get all the required data of P picks and S picks in the folder with the name of the region.
 
