@@ -15,7 +15,7 @@
     ```julia
     using Pkg
     pkgs_to_install = [
-        "ADCME",     # 需要运行 precompile()
+        "ADCME",     ## precompile()
         "PyCall",
         "PyPlot",
         "CSV",
