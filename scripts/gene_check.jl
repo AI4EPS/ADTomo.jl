@@ -5,6 +5,7 @@ using PyCall
 using CSV
 using DataFrames
 using HDF5
+using JSON
 
 region = "demo/"
 folder = "../local/" * region * "readin_data/"

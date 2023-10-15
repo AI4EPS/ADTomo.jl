@@ -42,6 +42,12 @@ config = Dict(
         "iterations" => 100,
         "steps" => 10,
     ),
+    "post_rect" => Dict(
+        "width" => 20,
+        "length" => 40,
+        "lambda_p" => 0,
+        "lambda_s" => 0.1,
+    ),
 )
 
 json_str = JSON.json(config, 3)  
@@ -73,8 +79,8 @@ config = Dict(
         "s_z" => -1e6,
         "eve_picks" => 10,
         "sta_picks" => 10,
-        "eve_eps" => 1.732,
-        "sta_eps" => 1.414,
+        "eve_eps" => 0.1,
+        "sta_eps" => 0.1,
         "eve_ratio" => 25
     ),
     "gene_obs" => Dict(
@@ -82,22 +88,28 @@ config = Dict(
         "srange" => 3,
         "p_requirement" => 0.8,
         "s_requirement" => 0.6,
-        "p_times" => 1.027,
-        "s_times" => 1.064,
+        "p_times" => 1.029,
+        "s_times" => 1.08,
         "bins_p" => 1000,
         "bins_s" => 1000
     ),
     "gene_check" => Dict(
-        "len" => 5,
+        "len" => 10,
         "vel_change" => 0.8,
     ),
     "inversion" => Dict(
         "smooth_hor" => 5,
         "smooth_ver" => 3,
-        "lambda_p" => 0.03,
+        "lambda_p" => 0.005,
         "lambda_s" => 0.1,
         "iterations" => 100,
         "steps" => 10,
+    ),
+    "post_rect" => Dict(
+        "width" => 20,
+        "length" => 20,
+        "lambda_p" => 0.005,
+        "lambda_s" => 0.1,
     ),
 )
 

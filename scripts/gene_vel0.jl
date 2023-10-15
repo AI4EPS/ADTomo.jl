@@ -1,6 +1,6 @@
 using HDF5
 
-region = "BayArea/"
+region = "demo/"
 folder = "../local/"*region*"readin_data/"
 rfile = open(folder*"range.txt","r")
 m = parse(Int,readline(rfile)); n = parse(Int,readline(rfile))

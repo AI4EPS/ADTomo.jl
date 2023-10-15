@@ -86,3 +86,14 @@ In this part, we prepare the locations of stations and events and adjust the 1D 
 ### post process
     "post_v2.jl" : read the intermediate results and plot it in the form of rectangule
     "post_v3.py" : read the intermediate results and save the information of "lon" and "lat" in the file
+
+### prepare faults
+    1. download the data of fault from USGS
+        wget https://earthquake.usgs.gov/static/lfs/nshm/qfaults/Qfaults_GIS.zip
+    2. unzip Qfaults_GIS.zip
+    3. download GMT
+    4. cd SHP
+    5. ogr2ogr -f GMT ca_offshore.gmt ca_offshore.shp
+       ogr2ogr -f GMT fault_areas.gmt fault_areas.shp
+       ogr2ogr -f GMT Qfaults_US_Database.gmt Qfaults_US_Database.shp
+

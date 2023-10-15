@@ -29,9 +29,9 @@ dx = parse(Int,readline(rfile)); dy = parse(Int,readline(rfile)); dz = parse(Int
 
 allsta = CSV.read(folder * "sta_eve/allsta.csv",DataFrame); numsta = size(allsta,1)
 alleve = CSV.read(folder * "sta_eve/alleve.csv",DataFrame); numeve = size(alleve,1)
-vel0 = h5read(folder * "velocity/vel0_s.h5","data")
-uobs = h5read(folder * "for_S/uobs_s.h5","matrix")
-qua = h5read(folder * "for_S/qua_s.h5","matrix")
+vel0 = h5read(folder * "velocity/vel0_p.h5","data")
+uobs = h5read(folder * "for_P/uobs_p.h5","matrix")
+qua = h5read(folder * "for_P/qua_p.h5","matrix")
 
 allsta = allsta[rank+1:nproc:numsta,:]
 uobs = uobs[rank+1:nproc:numsta,:]
@@ -48,7 +48,7 @@ for i = 1:numsta
     ix = allsta.x[i]; ixu = convert(Int64,ceil(ix)); ixd = convert(Int64,floor(ix))
     iy = allsta.y[i]; iyu = convert(Int64,ceil(iy)); iyd = convert(Int64,floor(iy))
     iz = allsta.z[i]; izu = convert(Int64,ceil(iz)); izd = convert(Int64,floor(iz))
-    slowness_u = 1/vel0[ixu,iyu,izu]; slowness_d = 1/vel0[ixu,iyu,izd]
+
     u0 = 1000 * ones(m,n,l)
     u0[ixu,iyu,izu] = sqrt((ix-ixu)^2+(iy-iyu)^2+(iz-izu)^2)*h/vel0[ixu,iyu,izu]
     u0[ixu,iyu,izd] = sqrt((ix-ixu)^2+(iy-iyu)^2+(iz-izd)^2)*h/vel0[ixu,iyu,izd]
@@ -118,17 +118,12 @@ vel = tf.reshape(o_vel,(1,m+sh1-1,n+sh1-1,l+sv1-1,1))
 cvel = tf.nn.conv3d(vel,filter,strides = (1,1,1,1,1),padding="VALID")
 n_vel = tf.reshape(cvel,(m,n,l))
 
-loss = sum(sum_loss_time) + config["lambda_s"]*sum(abs(fvar - n_vel))
+loss = sum(sum_loss_time) + config["lambda_p"]*sum(abs(fvar - n_vel))
 sess = Session(); init(sess)
 loss = mpi_sum(loss)
-#@show run(sess,loss)
 
 options = Optim.Options(iterations = config["iterations"])
-loc = folder * "inv_S_0.1/"
-if !isdir(loc)
-    mkdir(loc)
-    mkdir(loc*"intermediate/")
-end
+loc = folder * "inv_P_"*string(config["lambda_p"])*"/"
 result = ADTomo.mpi_optimize(sess, loss, method="LBFGS", options = options, 
     loc = loc*"intermediate/", steps = config["steps"])
 if mpi_rank()==0

@@ -245,6 +245,9 @@ CSV.write(folder * "alleve.csv",eve_new)
 CSV.write(folder * "allsta.csv",sta_new)
 file2 = open(folder * "stations.json", "w")
 JSON.print(file2, dic_save); close(file2)
+if isfile(folder * "eveid.h5")
+    rm(folder * "eveid.h5")
+end
 h5write(folder * "eveid.h5", "data", eveid_new)
 
 figure()

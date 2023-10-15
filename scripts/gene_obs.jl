@@ -154,17 +154,6 @@ if !isdir(folder*"/for_P/")
     mkdir(folder*"/for_S/")
 end
 
-if isfile(folder * "for_P/uobs_p.h5")
-    rm(folder * "for_P/uobs_p.h5")
-    rm(folder * "for_P/qua_p.h5")
-    rm(folder * "for_S/uobs_s.h5")
-    rm(folder * "for_S/qua_s.h5")
-end
-h5write(folder * "for_P/uobs_p.h5","matrix",uobs_p)
-h5write(folder * "for_S/uobs_s.h5","matrix",uobs_s)
-h5write(folder * "for_P/qua_p.h5","matrix",qua_p)
-h5write(folder * "for_S/qua_s.h5","matrix",qua_s)
-
 delt_p = []; delt_s = []; numbig_p = 0; numsmall_p = 0; numbig_s = 0; numsmall_s = 0
 sta_record_p = zeros(numsta,2); eve_record_p = zeros(numeve,2);sum_p = 0
 sta_record_s = zeros(numsta,2); eve_record_s = zeros(numeve,2);sum_s = 0
@@ -204,6 +193,17 @@ for i = 1:numeve
         end
     end
 end
+
+if isfile(folder * "for_P/uobs_p.h5")
+    rm(folder * "for_P/uobs_p.h5")
+    rm(folder * "for_P/qua_p.h5")
+    rm(folder * "for_S/uobs_s.h5")
+    rm(folder * "for_S/qua_s.h5")
+end
+h5write(folder * "for_P/uobs_p.h5","matrix",uobs_p)
+h5write(folder * "for_S/uobs_s.h5","matrix",uobs_s)
+h5write(folder * "for_P/qua_p.h5","matrix",qua_p)
+h5write(folder * "for_S/qua_s.h5","matrix",qua_s)
 
 print(numbig_p," ",numsmall_p,'\n',numbig_s," ",numsmall_s,'\n')
 print(sum_p," ",sum_s,'\n')
