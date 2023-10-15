@@ -30,6 +30,18 @@ config = Dict(
         "bins_p" => 6000,
         "bins_s" => 5000
     ),
+    "gene_check" => Dict(
+        "len" => 10,
+        "vel_change" => 0.8,
+    ),
+    "inversion" => Dict(
+        "smooth_hor" => 5,
+        "smooth_ver" => 3,
+        "lambda_p" => 0.03,
+        "lambda_s" => 0.1,
+        "iterations" => 100,
+        "steps" => 10,
+    ),
 )
 
 json_str = JSON.json(config, 3)  
@@ -74,6 +86,18 @@ config = Dict(
         "s_times" => 1.064,
         "bins_p" => 1000,
         "bins_s" => 1000
+    ),
+    "gene_check" => Dict(
+        "len" => 5,
+        "vel_change" => 0.8,
+    ),
+    "inversion" => Dict(
+        "smooth_hor" => 5,
+        "smooth_ver" => 3,
+        "lambda_p" => 0.03,
+        "lambda_s" => 0.1,
+        "iterations" => 100,
+        "steps" => 10,
     ),
 )
 
