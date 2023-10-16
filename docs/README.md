@@ -79,15 +79,17 @@ In this part, we prepare the locations of stations and events and adjust the 1D 
     2. generate histogram of residuals and residuals of stations and events on the topography map
     3. plot the coverage of the observed data
     (maybe in this part, from the output of camparing P picks, S picks and the loss function, you can adjust velocity model a bit more)
-
+    4. "re_hist.jl" has very similar function as the "gene_obs.jl" code, but much simplier.
+### generate checkerboard test
+    julia gene_check.jl
+    need to decide the length of the grid size, the velocity change in each grid.
+    this code will save the velocity of checkerboard test, and the synthetic travel time.
 ### inversion
     parameters need to be adjust: the range the initial velocity model can change, Gaussian regularization(size, and lambda)
 
-### post process
-    "post_v2.jl" : read the intermediate results and plot it in the form of rectangule
-    "post_v3.py" : read the intermediate results and save the information of "lon" and "lat" in the file
 
-### prepare faults
+### codes for plotting
+#### prepare faults
     1. download the data of fault from USGS
         wget https://earthquake.usgs.gov/static/lfs/nshm/qfaults/Qfaults_GIS.zip
     2. unzip Qfaults_GIS.zip
@@ -96,4 +98,12 @@ In this part, we prepare the locations of stations and events and adjust the 1D 
     5. ogr2ogr -f GMT ca_offshore.gmt ca_offshore.shp
        ogr2ogr -f GMT fault_areas.gmt fault_areas.shp
        ogr2ogr -f GMT Qfaults_US_Database.gmt Qfaults_US_Database.shp
-
+#### prepare the velocity model
+    "post_rect.jl": 1. read the intermediate results and plot it in the form of rectangule( the same as inversion part)
+                    2. generate ".h5" file of the intermediate and final inversion results which can be used for plotting
+    "post_gmt.py" : read the intermediate results and save the information of "lon" and "lat" in the file, which is used in the part of "plot_final.sh"
+#### plot with GMT
+    "plot_range.sh": need to prepare the lon&lat of the four grids in the corner
+    "plot_residual.sh": use the lon&lat of stations and events, as well as a "residual" value to plot the residual befor inversion
+    "plot_final.sh": 1. plot information of faults
+                     2. plot velocity model from "post_gmt.py"
