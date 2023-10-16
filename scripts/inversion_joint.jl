@@ -30,20 +30,27 @@ dx = parse(Int,readline(rfile)); dy = parse(Int,readline(rfile)); dz = parse(Int
 allsta = CSV.read(folder * "sta_eve/allsta.csv",DataFrame); numsta = size(allsta,1)
 alleve = CSV.read(folder * "sta_eve/alleve.csv",DataFrame); numeve = size(alleve,1)
 vel0 = h5read(folder * "velocity/vel0_p.h5","data")
-uobs = h5read(folder * "for_P/uobs_p.h5","matrix")
-qua = h5read(folder * "for_P/qua_p.h5","matrix")
+
+uobs_p = h5read(folder * "for_P/uobs_p.h5","matrix")
+qua_p = h5read(folder * "for_P/qua_p.h5","matrix")
+uobs_s = h5read(folder * "for_S/uobs_s.h5","matrix")
+qua_s = h5read(folder * "for_S/qua_s.h5","matrix")
 
 allsta = allsta[rank+1:nproc:numsta,:]
-uobs = uobs[rank+1:nproc:numsta,:]
-qua = qua[rank+1:nproc:numsta,:]
+uobs_p = uobs_p[rank+1:nproc:numsta,:]
+qua_p = qua_p[rank+1:nproc:numsta,:]
+uobs_s = uobs_s[rank+1:nproc:numsta,:]
+qua_s = qua_s[rank+1:nproc:numsta,:]
 numsta = size(allsta,1)
 #@show rank, nproc, numsta
 
 var_change = Variable(zero(vel0))
 fvar_ = 2*sigmoid(var_change)-1 + vel0
 fvar = mpi_bcast(fvar_)
+pvs_ = 1.7
+pvs = mpi_bcast(Variable(pvs_))
 
-uvar = PyObject[]
+uvar_p = PyObject[]; uvar_s = PyObject[]
 for i = 1:numsta
     ix = allsta.x[i]; ixu = convert(Int64,ceil(ix)); ixd = convert(Int64,floor(ix))
     iy = allsta.y[i]; iyu = convert(Int64,ceil(iy)); iyd = convert(Int64,floor(iy))
@@ -58,25 +65,36 @@ for i = 1:numsta
     u0[ixd,iyu,izd] = sqrt((ix-ixd)^2+(iy-iyu)^2+(iz-izd)^2)*h/vel0[ixd,iyu,izd]
     u0[ixd,iyd,izu] = sqrt((ix-ixd)^2+(iy-iyd)^2+(iz-izu)^2)*h/vel0[ixd,iyd,izu]
     u0[ixd,iyd,izd] = sqrt((ix-ixd)^2+(iy-iyd)^2+(iz-izd)^2)*h/vel0[ixd,iyd,izd]
-    push!(uvar,eikonal3d(u0,1 ./ fvar,h,m,n,l,1e-3,false))
+    push!(uvar_p,eikonal3d(u0,1 ./ fvar,h,m,n,l,1e-3,false))
+
+    u0 = 1000 * ones(m,n,l)
+    u0[ixu,iyu,izu] = sqrt((ix-ixu)^2+(iy-iyu)^2+(iz-izu)^2)*h/vel0[ixu,iyu,izu]*pvs_
+    u0[ixu,iyu,izd] = sqrt((ix-ixu)^2+(iy-iyu)^2+(iz-izd)^2)*h/vel0[ixu,iyu,izd]*pvs_
+    u0[ixu,iyd,izu] = sqrt((ix-ixu)^2+(iy-iyd)^2+(iz-izu)^2)*h/vel0[ixu,iyd,izu]*pvs_
+    u0[ixu,iyd,izd] = sqrt((ix-ixu)^2+(iy-iyd)^2+(iz-izd)^2)*h/vel0[ixu,iyd,izd]*pvs_
+    u0[ixd,iyu,izu] = sqrt((ix-ixd)^2+(iy-iyu)^2+(iz-izu)^2)*h/vel0[ixd,iyu,izu]*pvs_
+    u0[ixd,iyu,izd] = sqrt((ix-ixd)^2+(iy-iyu)^2+(iz-izd)^2)*h/vel0[ixd,iyu,izd]*pvs_
+    u0[ixd,iyd,izu] = sqrt((ix-ixd)^2+(iy-iyd)^2+(iz-izu)^2)*h/vel0[ixd,iyd,izu]*pvs_
+    u0[ixd,iyd,izd] = sqrt((ix-ixd)^2+(iy-iyd)^2+(iz-izd)^2)*h/vel0[ixd,iyd,izd]*pvs_
+    push!(uvar_s,eikonal3d(u0,pvs ./ fvar,h,m,n,l,1e-3,false))
 end
 
-caltime = []
+caltime_p = []; caltime_s = []
 for i = 1:numsta
-    timei = []
+    timei_p = []; timei_s = []
     for j = 1:numeve
         jx = alleve.x[j]; x1 = convert(Int64,floor(jx)); x2 = convert(Int64,ceil(jx))
         jy = alleve.y[j]; y1 = convert(Int64,floor(jy)); y2 = convert(Int64,ceil(jy))
         jz = alleve.z[j]; z1 = convert(Int64,floor(jz)); z2 = convert(Int64,ceil(jz))
         
         if x1 == x2
-            tx11 = uvar[i][x1,y1,z1]; tx12 = uvar[i][x1,y1,z2]
-            tx21 = uvar[i][x1,y2,z1]; tx22 = uvar[i][x1,y2,z2]
+            tx11 = uvar_p[i][x1,y1,z1]; tx12 = uvar_p[i][x1,y1,z2]
+            tx21 = uvar_p[i][x1,y2,z1]; tx22 = uvar_p[i][x1,y2,z2]
         else
-            tx11 = (x2-jx)*uvar[i][x1,y1,z1] + (jx-x1)*uvar[i][x2,y1,z1]
-            tx12 = (x2-jx)*uvar[i][x1,y1,z2] + (jx-x1)*uvar[i][x2,y1,z2]
-            tx21 = (x2-jx)*uvar[i][x1,y2,z1] + (jx-x1)*uvar[i][x2,y2,z1]
-            tx22 = (x2-jx)*uvar[i][x1,y2,z2] + (jx-x1)*uvar[i][x2,y2,z2]
+            tx11 = (x2-jx)*uvar_p[i][x1,y1,z1] + (jx-x1)*uvar_p[i][x2,y1,z1]
+            tx12 = (x2-jx)*uvar_p[i][x1,y1,z2] + (jx-x1)*uvar_p[i][x2,y1,z2]
+            tx21 = (x2-jx)*uvar_p[i][x1,y2,z1] + (jx-x1)*uvar_p[i][x2,y2,z1]
+            tx22 = (x2-jx)*uvar_p[i][x1,y2,z2] + (jx-x1)*uvar_p[i][x2,y2,z2]
         end
         if y1 == y2
             txy1 = tx11; txy2 = tx12
@@ -89,21 +107,46 @@ for i = 1:numsta
         else
             txyz = (z2-jz)*txy1 + (jz-z1)*txy2
         end
-        push!(timei,txyz)
+        push!(timei_p,txyz)
+
+        if x1 == x2
+            tx11 = uvar_s[i][x1,y1,z1]; tx12 = uvar_s[i][x1,y1,z2]
+            tx21 = uvar_s[i][x1,y2,z1]; tx22 = uvar_s[i][x1,y2,z2]
+        else
+            tx11 = (x2-jx)*uvar_p[i][x1,y1,z1] + (jx-x1)*uvar_p[i][x2,y1,z1]
+            tx12 = (x2-jx)*uvar_p[i][x1,y1,z2] + (jx-x1)*uvar_p[i][x2,y1,z2]
+            tx21 = (x2-jx)*uvar_p[i][x1,y2,z1] + (jx-x1)*uvar_p[i][x2,y2,z1]
+            tx22 = (x2-jx)*uvar_p[i][x1,y2,z2] + (jx-x1)*uvar_p[i][x2,y2,z2]
+        end
+        if y1 == y2
+            txy1 = tx11; txy2 = tx12
+        else
+            txy1 = (y2-jy)*tx11 + (jy-y1)*tx21
+            txy2 = (y2-jy)*tx12 + (jy-y1)*tx22
+        end
+        if z1 == z2
+            txyz = txy1
+        else
+            txyz = (z2-jz)*txy1 + (jz-z1)*txy2
+        end
+        push!(timei_s,txyz)
     end
-    push!(caltime,timei)
+    push!(caltime_p,timei_p)
+    push!(caltime_s,timei_s)
 end
 
 sum_loss_time = PyObject[]
 for i = 1:numeve
     for j = 1:numsta
-        if uobs[j,i] == -1
-            continue
+        if uobs_p[j,i] != -1
+            push!(sum_loss_time, qua_p[j,i]*(uobs_p[j,i]-caltime_p[j][i])^2)
         end
-        push!(sum_loss_time, qua[j,i]*(uobs[j,i]-caltime[j][i])^2)
+        if uobs_s[j,i] != -1
+            push!(sum_loss_time, qua_s[j,i]*(uobs_s[j,i]-caltime_s[j][i])^2)
+        end
     end
 end
-
+#
 sh1 = config["smooth_hor"]; sv1 = config["smooth_ver"]
 sh2 = convert(Int,(config["smooth_hor"]-1)/2); sv2 = convert(Int,(config["smooth_ver"]-1)/2);
 gauss_wei = ones(sh1,sh1,sv1) ./ (sh1*sh1*sv1)
@@ -117,13 +160,13 @@ vel = tf.reshape(o_vel,(1,m+sh1-1,n+sh1-1,l+sv1-1,1))
 
 cvel = tf.nn.conv3d(vel,filter,strides = (1,1,1,1,1),padding="VALID")
 n_vel = tf.reshape(cvel,(m,n,l))
-
+#
 loss = sum(sum_loss_time) + config["lambda_p"]*sum(abs(fvar - n_vel))
 sess = Session(); init(sess)
 loss = mpi_sum(loss)
 
 options = Optim.Options(iterations = config["iterations"])
-loc = folder * "inv_P_"*string(config["lambda_p"])*"/"
+loc = folder * "joint_"*string(config["lambda_p"])*"/"
 result = ADTomo.mpi_optimize(sess, loss, method="LBFGS", options = options, 
     loc = loc*"intermediate/", steps = config["steps"])
 if mpi_rank()==0

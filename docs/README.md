@@ -51,6 +51,15 @@
     ```
 ## Usage
 
+### orders to run the code
+1. download "demo.tar.gz" in the release part
+2. tar -xvf demo.tar.gz
+3. julia set_config.jl                          # set parameters
+4. julia sta_eve.jl
+5. julia gene_vel0.jl                           # generate GIL7 velocity model
+5. julia gene_obs.jl
+6. julia gene_check.jl (optional, generating checkerboard test)
+7. mpirun --bind-to core -n 16 julia inversion.jl  # adjust the number of cores based on data
 ### get the data of seismic wave picks
 
 In this part, we do not pick arrival time manually and use [Phasenet](https://github.com/AI4EPS/PhaseNet) to get all traveltime data.
@@ -58,7 +67,6 @@ In this part, we do not pick arrival time manually and use [Phasenet](https://gi
 1. set the region, period, networks and channels by editting "config.json" 
 2. run "download_waveform_event.py" to get all the waveforms in this set region.
 3. run "run_phasenet.py" to get all the required data of P picks and S picks in the folder with the name of the region.
-
 ### preprocess
 
 In this part, we prepare the locations of stations and events and adjust the 1D velocity model for the inversion part. 
@@ -70,7 +78,9 @@ In this part, we prepare the locations of stations and events and adjust the 1D 
         range: the area it will use(like z should below 15km, and other data is filtered) 
         eps, min_pts: DBSCAN parameters
         ratio: if a cluster have 50 events, then we reserve 2, the ratio equals 1/25.
-    run the code "sta_eve.jl" we can get 2 files, recording the xyz of events and stations, the number that they are recorded in the original files and the location map of these stations and events.
+    run the code "sta_eve.jl" we can get 2 files, recording the xyz of events and stations,
+                                     the number that they are recorded in the original files 
+                                     and the location map of these stations and events.
 #### prepare a proper 1D velocity model.
     design a 1D velocity model or just use the common one and adjust it based on the observation. And the input file should be a 3D matrix.
 #### get observed traveltime 
