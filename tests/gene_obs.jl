@@ -18,15 +18,15 @@ dx = parse(Int,readline(rfile)); dy = parse(Int,readline(rfile)); dz = parse(Int
 folder = "readin_data/sta_eve/cluster_new4/"
 stations = CSV.read("seismic_data/BayArea/obspy/stations.csv", DataFrame)
 events = CSV.read("seismic_data/BayArea/obspy/catalog.csv", DataFrame)
-allsta = CSV.read(folder * "allsta.csv",DataFrame)
-alleve = CSV.read(folder * "alleve.csv",DataFrame)
-numsta = size(allsta,1); numeve = size(alleve,1)
-file = open(folder * "stations.json", "r")
-dic_sta = JSON.parse(file); close(file)
+allsta = CSV.read(folder * "allsta.csv",DataFrame); numsta = size(allsta,1)
+alleve = CSV.read(folder * "alleve.csv",DataFrame); numeve = size(alleve,1)
+file = open(folder * "stations.json", "r"); dic_sta = JSON.parse(file); close(file)
 eveid = h5read(folder * "eveid.h5","data")
+
 folder = "readin_data/velocity/vel_2/"
 vel_p = h5read(folder * "vel0_p.h5","data") #.* 1.075
 vel_s = h5read(folder * "vel0_s.h5","data") #.* 1.13
+
 folder = "readin_data/store/new4/2/"
 
 u_p = PyObject[]; u_s = PyObject[]; fvel_p = 1 ./ vel_p; fvel_s = 1 ./ vel_s
@@ -115,7 +115,6 @@ end
 
 uobs_p = -ones(numsta,numeve); uobs_s = -ones(numsta,numeve)
 qua_p = ones(numsta,numeve); qua_s = ones(numsta,numeve)
-
 for i = 1:numeve
     local evetime = events[eveid[i],2]; local id = events[eveid[i],1]
     local file = "seismic_data/BayArea/phasenet/picks/" * id * ".csv"
@@ -143,7 +142,12 @@ for i = 1:numeve
         end
     end
 end
+h5write(folder * "for_P/uobs_p.h5","matrix",uobs_p)
+h5write(folder * "for_S/uobs_s.h5","matrix",uobs_s)
+h5write(folder * "for_P/qua_p.h5","matrix",qua_p)
+h5write(folder * "for_S/qua_s.h5","matrix",qua_s)
 
+#
 delt_p = []; delt_s = []; numbig_p = 0; numsmall_p = 0; numbig_s = 0; numsmall_s = 0
 sta_record_p = zeros(numsta,2); eve_record_p = zeros(numeve,2); sum_p = 0
 sta_record_s = zeros(numsta,2); eve_record_s = zeros(numeve,2); sum_s = 0
@@ -195,13 +199,33 @@ for i = 1:numeve
     eve_ratio_p[i] = (eve_record_p[i,1]-eve_record_p[i,2]) / (eve_record_p[i,1]+eve_record_p[i,2])
     eve_ratio_s[i] = (eve_record_s[i,1]-eve_record_s[i,2]) / (eve_record_s[i,1]+eve_record_s[i,2])
 end
+file = open(folder * "for_P/residual/eve_ratio_p.txt","w")
+for i = 1:numeve
+    println(file, eve_ratio_p[i])
+end
+close(file)
+file = open(folder * "for_P/residual/sta_ratio_p.txt","w")
+for i = 1:numsta
+    println(file, sta_ratio_p[i])
+end
+close(file)
+file = open(folder * "for_S/residual/eve_ratio_s.txt","w")
+for i = 1:numeve
+    println(file, eve_ratio_s[i])
+end
+close(file)
+file = open(folder * "for_S/residual/sta_ratio_s.txt","w")
+for i = 1:numsta
+    println(file, sta_ratio_s[i])
+end
+close(file)
 
 plt.figure(); plt.hist(delt_p,bins=6000,edgecolor="royalblue",color="skyblue");
 plt.xlabel("Residual"); plt.ylabel("Frequency"); plt.xlim(-prange,prange)
-plt.title("Histogram_P");plt.savefig(folder * "for_P/hist_p_0.png")
+plt.savefig(folder * "for_P/hist_p_0.png")
 plt.figure(); plt.hist(delt_s,bins=5000,edgecolor="royalblue",color="skyblue"); 
 plt.xlabel("Residual"); plt.ylabel("Frequency"); plt.xlim(-srange,srange)
-plt.title("Histogram_S");plt.savefig(folder * "for_S/hist_s_0.png")
+plt.savefig(folder * "for_S/hist_s_0.png")
 #
 cover_p = zeros(m,n,l); cover_s=zeros(m,n,l)
 for i = 1:numeve
@@ -249,41 +273,15 @@ for i = 1:min(25,l)
 end
 savefig(folder * "for_S/coverage_s.png")
 for i = 1:min(25,l)
-    figure(figsize=(5,5))
-    pcolormesh(cover_p[:,:,i],cmap="magma_r")
+    figure(figsize=(4,8))
+    pcolormesh(transpose(cover_p[:,:,i]),cmap="magma_r")
     colorbar()
     savefig(folder * "for_P/coverage/layer_$i.png")
     close()
-    figure(figsize=(5,5))
-    pcolormesh(cover_s[:,:,i],cmap="magma_r")
+    figure(figsize=(4,8))
+    pcolormesh(transpose(cover_s[:,:,i]),cmap="magma_r")
     colorbar()
     savefig(folder * "for_S/coverage/layer_$i.png")
     close()
 end
-
-h5write(folder * "for_P/uobs_p.h5","matrix",uobs_p)
-h5write(folder * "for_S/uobs_s.h5","matrix",uobs_s)
-h5write(folder * "for_P/qua_p.h5","matrix",qua_p)
-h5write(folder * "for_S/qua_s.h5","matrix",qua_s)
-
-file = open(folder * "for_P/residual/eve_ratio_p.txt","w")
-for i = 1:numeve
-    println(file, eve_ratio_p[i])
-end
-close(file)
-file = open(folder * "for_P/residual/sta_ratio_p.txt","w")
-for i = 1:numsta
-    println(file, sta_ratio_p[i])
-end
-close(file)
-file = open(folder * "for_S/residual/eve_ratio_s.txt","w")
-for i = 1:numeve
-    println(file, eve_ratio_s[i])
-end
-close(file)
-file = open(folder * "for_S/residual/sta_ratio_s.txt","w")
-for i = 1:numsta
-    println(file, sta_ratio_s[i])
-end
-close(file)
 #

@@ -24,10 +24,11 @@ alleve = CSV.read(folder * "alleve.csv",DataFrame)
 numsta = size(allsta,1); numeve = size(alleve,1)
 
 folder = "readin_data/store/new4/2/"
-uobs = h5read(folder * "for_P/uobs_p.h5","matrix")
-qua = h5read(folder * "for_P/qua_p.h5","matrix")
+uobs = h5read(folder * "for_S/uobs_s.h5","matrix")
+qua = h5read(folder * "for_S/qua_s.h5","matrix")
 
-vel0 = h5read("readin_data/store/new4/2/inv_P_0.05/intermediate/post_15.h5","data")
+folder = "readin_data/temporal/"
+vel0 = h5read(folder * "vel/s_final.h5","data")
 #vel0 = h5read("/home/lingxia/ADTomo.jl/tests/readin_data/velocity/vel_2/vel0_p.h5","data")
 uvar = PyObject[]
 for i = 1:numsta
@@ -79,18 +80,48 @@ for i = 1:numsta
     end
 end
 
-delt = []; sum_res = 0
+delt = []; sum_res = 0; numbig = 0; numsmall = 0
+sta_record = zeros(numsta,2); sta_median = zeros(numsta); sta_ratio = ones(numsta)
 for i = 1:numsta
+    local sta_delt = []
     for j = 1:numeve
         if uobs[i,j] != -1
+            push!(sta_delt, uobs[i,j]-caltime[i,j])
             push!(delt,uobs[i,j]-caltime[i,j])
             global sum_res += qua[i,j] * (uobs[i,j]-caltime[i,j])^2
+            if (uobs[i,j]-caltime[i,j]) > 0
+                global numbig += 1
+                sta_record[i,1] += 1
+            end
+            if (uobs[i,j]-caltime[i,j]) < 0
+                global numsmall += 1
+                sta_record[i,2] += 1
+            end 
         end
     end
+    local sta_num = size(sta_delt,1)
+    if sta_num == 0 continue
+    elseif sta_num%2 == 0 sta_median[i] = sort(sta_delt)[convert(Int,sta_num/2)]
+    else sta_median[i] = sort(sta_delt)[convert(Int,(sta_num+1)/2)] end
 end
+for i = 1:numsta
+    sta_ratio[i] = (sta_record[i,1]-sta_record[i,2]) / (sta_record[i,1]+sta_record[i,2])
+end
+print(numbig," ",numsmall,'\n')
 
-folder = "readin_data/store/new4/2/inv_P_0.05/"
+file = open(folder * "all/sta_ratio_s.txt","w")
+for i = 1:numsta
+    println(file, sta_ratio[i])
+end
+close(file)
+file = open(folder * "all/sta_median_s.txt","w")
+for i = 1:numsta
+    println(file, sta_median[i])
+end
+close(file)
+
 plt.figure(); plt.hist(delt,bins=60,edgecolor="royalblue",color="skyblue");
-plt.xlabel("Residual"); plt.ylabel("Frequency"); plt.xlim(-1.5,1.5)
-plt.title("Histogram_P");plt.savefig(folder * "hist_p_15.png")
+plt.xlabel("Residual"); plt.ylabel("Counts")
+plt.xlim(-3,3); plt.ylim(0,1500)
+plt.savefig(folder * "all/histogram_s.png")
 @show sum_res

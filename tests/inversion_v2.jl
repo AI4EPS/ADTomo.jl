@@ -27,18 +27,12 @@ folder = "readin_data/sta_eve/cluster_new4/"
 allsta = CSV.read(folder * "allsta.csv",DataFrame)
 alleve = CSV.read(folder * "alleve.csv",DataFrame)
 numsta = size(allsta,1); numeve = size(alleve,1)
-
 folder = "readin_data/velocity/vel_2/"
 vel0 = h5read(folder * "vel0_s.h5","data")
-#=
-vel_raw = h5read("readin_data/store/new4/2/inv_P/step_6/01/intermediate/post_20.h5","data")
-vel_r = tf.reshape(vel_raw,(m,n,l))
-sess = Session(); init(sess)
-vel0 = run(sess,vel_r)
-=#
 folder = "readin_data/store/new4/2/"
 uobs = h5read(folder * "for_S/ucheck_s_10.h5","matrix")
 qua = h5read(folder * "for_S/qua_s.h5","matrix")
+
 allsta = allsta[rank+1:nproc:numsta,:]
 uobs = uobs[rank+1:nproc:numsta,:]
 qua = qua[rank+1:nproc:numsta,:]
@@ -123,14 +117,14 @@ vel = tf.reshape(o_vel,(1,m+sh1-1,n+sh1-1,l+sv1-1,1))
 cvel = tf.nn.conv3d(vel,filter,strides = (1,1,1,1,1),padding="VALID")
 n_vel = tf.reshape(cvel,(m,n,l))
 #
-loss = sum(sum_loss_time) + 0.005*sum(abs(fvar - n_vel))
+loss = sum(sum_loss_time) + 0.1*sum(abs(fvar - n_vel))
 sess = Session(); init(sess)
 loss = mpi_sum(loss)
 #@show run(sess,loss)
 
 options = Optim.Options(iterations = 100)
 result = ADTomo.mpi_optimize(sess, loss, method="LBFGS", options = options, 
-    loc = folder * "check_S_0.005/intermediate/", steps = 1)
+    loc = folder * "check_S_0.1/intermediate/", steps = 20)
 if mpi_rank()==0
     @info [size(result[i]) for i = 1:length(result)]
     @info [length(result)]
