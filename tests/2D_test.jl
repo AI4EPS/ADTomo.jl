@@ -59,12 +59,20 @@ end
      
 
 i = 5                                      #choose a source to plot a traveltime image
-figure()
+figure(figsize=(5,4))
 pcolormesh(uobs[i], cmap = "Purples")
 colorbar().set_label("traveltime/s")
 xlabel("x/km"); ylabel("y/km")
 scatter(allsrc.x[i],allsrc.y[i])
 savefig("traveltime_$i.png")
+i = 20                                    #choose a source to plot a traveltime image
+figure(figsize=(5,4))
+pcolormesh(uobs[i], cmap = "Purples")
+colorbar().set_label("traveltime/s")
+xlabel("x/km"); ylabel("y/km")
+scatter(allsrc.x[i],allsrc.y[i])
+savefig("traveltime_$i.png")
+
      
 fvar = Variable(ones(n, m) ./ 6)                          #design an original velocity model for inversion
 u = PyObject[]
@@ -79,17 +87,27 @@ init(sess)
 BFGS!(sess, loss, 200)                                            #200 means max iteration steps and (0.5,100.0) means velocity change range
 
 
-
-figure(figsize=(10, 4))
-subplot(121)
+figure(figsize=(5, 4))
 pcolormesh( 1 ./ f, vmin = 5,vmax = 7)
 colorbar()
-title("True")
+savefig("0.png")
+
+figure(figsize=(5, 4))
+pcolormesh( 1 ./ f, vmin = 5,vmax = 7)
+colorbar()
+scatter(allsrc.x,allsrc.y,label="event")
+legend()
+savefig("1.png")
+
+figure(figsize=(5, 4))
+pcolormesh( 1 ./ f, vmin = 5,vmax = 7)
+colorbar()
 scatter(allsrc.x,allsrc.y,label="event")
 scatter(allrcv.x,allrcv.y,label="station")
 legend()
-subplot(122)
+savefig("2.png")
+
+figure(figsize=(5, 4))
 pcolormesh(1 ./ run(sess,fvar),vmin = 5,vmax = 7)                #vmin & vmax
 colorbar()
-title("Inverted")
-savefig("inversion_result.png")                                      
+savefig("3.png")                                      
