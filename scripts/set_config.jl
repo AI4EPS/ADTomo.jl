@@ -28,7 +28,9 @@ config = Dict(
         "p_times" => 1.042,
         "s_times" => 1.083,
         "bins_p" => 6000,
-        "bins_s" => 5000
+        "bins_s" => 5000,
+        "cov_width" => 4,
+        "cov_length" => 8,
     ),
     "gene_check" => Dict(
         "len" => 10,
@@ -91,7 +93,9 @@ config = Dict(
         "p_times" => 1.029,
         "s_times" => 1.08,
         "bins_p" => 1000,
-        "bins_s" => 1000
+        "bins_s" => 1000,
+        "cov_width" => 5,
+        "cov_length" => 5,
     ),
     "gene_check" => Dict(
         "len" => 10,
