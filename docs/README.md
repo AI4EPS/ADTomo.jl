@@ -51,7 +51,7 @@
     ```
 ## Usage
 
-### get the data of seismic wave picks
+### get the data of seismic wave picks [using PhaseNet](https://github.com/AI4EPS/PhaseNet)
 
 In this part, we do not pick arrival time manually and use Phasenet to get all traveltime data.
 
