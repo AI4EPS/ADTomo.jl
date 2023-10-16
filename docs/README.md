@@ -52,14 +52,17 @@
 ## Usage
 
 ### orders to run the code
-1. download "demo.tar.gz" in the release part
-2. tar -xvf demo.tar.gz
-3. julia set_config.jl                          # set parameters
-4. julia sta_eve.jl
-5. julia gene_vel0.jl                           # generate GIL7 velocity model
-5. julia gene_obs.jl
-6. julia gene_check.jl (optional, generating checkerboard test)
-7. mpirun --bind-to core -n 16 julia inversion.jl  # adjust the number of cores based on data
+mkdir local & cd local & download "demo.tar.gz" in the release part to this folder
+tar -xvf demo.tar.gz
+cd ../scripts
+julia set_config.jl            # set parameters and generate "config.json"
+julia sta_eve.jl
+julia gene_vel0.jl             # generate GIL7 velocity model
+julia gene_obs.jl              # you can run it multiple times with changing veltimes_p&veltimes_s in the "config.json" to find an optimal one
+julia gene_check.jl (optional, generating checkerboard test)
+mkdir ../local/demo/readin_data/inv_P_0.005 ../local/demo/readin_data/inv_P_0.005/intermediate
+(this can help store intermediate results, the name"inv_P_0.005" is base on wave stype and lambda, based on line126-128 in "inversion.jl")
+mpirun --bind-to core -n 16 julia inversion.jl  # adjust the number of cores based on data
 ### get the data of seismic wave picks
 
 In this part, we do not pick arrival time manually and use [Phasenet](https://github.com/AI4EPS/PhaseNet) to get all traveltime data.
