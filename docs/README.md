@@ -51,9 +51,9 @@
     ```
 ## Usage
 
-### get the data of seismic wave picks [using PhaseNet](https://github.com/AI4EPS/PhaseNet)
+### get the data of seismic wave picks
 
-In this part, we do not pick arrival time manually and use Phasenet to get all traveltime data.
+In this part, we do not pick arrival time manually and use [Phasenet](https://github.com/AI4EPS/PhaseNet) to get all traveltime data.
 
 1. set the region, period, networks and channels by editting "config.json" 
 2. run "download_waveform_event.py" to get all the waveforms in this set region.
