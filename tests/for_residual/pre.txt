@@ -1,7 +1,5 @@
 awk -F ',' 'NR > 1 {print $4 " " $5}' ../../sta_eve/cluster_new4/allsta.csv > loc_s.txt
-awk -F ',' 'NR > 1 {print $4 " " $5}' ../../sta_eve/cluster_new4/alleve.csv > loc_e0.txt
-awk -F ',' 'NR > 1 {print $4 " " 2*(2-$3)}' ../../sta_eve/cluster_new4/alleve.csv > loc_e1.txt
-awk -F ',' 'NR > 1 {print $5 " " 2*(2-$3)}' ../../sta_eve/cluster_new4/alleve.csv > loc_e2.txt
+awk -F ',' 'NR > 1 {print $4 " " $5}' ../../sta_eve/cluster_new4/alleve.csv > loc_e.txt
 
 cd GIL7/for_P/residual/
 paste -d ' ' ../../../loc_s.txt sta_ratio_p.txt > for_p.txt

@@ -2,7 +2,7 @@
 
 gmt begin mapsta_s png
     gmt basemap -R-123.5/-120.5/36/38.6 -JM15c -Ba
-    gmt grdimage @earth_relief_01m -Baf -BWSen -I+d -t25
+    gmt grdimage @earth_relief_01m -Baf -BWSen -t25
     gmt colorbar
     gmt makecpt -Cpolar
     gmt plot -Sc0.2c -C for_s.txt
@@ -10,10 +10,10 @@ gmt end
 
 gmt begin mapeve_s_0 png
     gmt basemap -R-123.5/-120.5/36/38.6 -JM15c -Ba
-    gmt grdimage @earth_relief_01m -Baf -BWSen -I+d -t25
+    gmt grdimage @earth_relief_01m -Baf -BWSen -t25
     gmt colorbar
     gmt makecpt -Cpolar
-    gmt plot -Sc0.2c -C for_s.txt
+    gmt plot -Sc0.2c -C for_S.txt
 gmt end
 
 gmt begin mapeve_s_1 png
