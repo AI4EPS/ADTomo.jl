@@ -9,7 +9,7 @@
         tar -xzvf julia-1.9.3-linux-x86_64.tar.gz
     3. add path
         vi ~/.bashrc
-        add " export PATH="～/julia-1.9.3/bin:$PATH" " to ~/.bashrc
+        add " export PATH="$PATH:/home/usr/julia-1.9.3/bin" " to ~/.bashrc
         source ~/.bashrc
 ### install necessary packages
     ```julia
@@ -25,9 +25,12 @@
         "Dates",
         "LineSearches",
         "Random",
-        "Optim"
+        "Optim",
+        "JSON",
+        "Clustering",
+        "Distances"
     ]
-    Pkg.add.(pkgs_to_install)
+    Pkg.add(pkgs_to_install)
     ```
 ### install ADTomo
     1. download the codebase
@@ -41,28 +44,27 @@
     ```julia
         using ADCME
         install_openmpi()
+        ADCME.precompile(true)
+        get_mpirun()
     add path
         vi ~/.bashrc
-        add " export PATH="～/.julia/adcme/bin:$PATH" " to ~/.bashrc
+        add " export PATH="$PATH:home/usr/.julia/adcme/bin" " to ~/.bashrc
         source ~/.bashrc
-    ```julia
-        using ADCME
-        ADCME.precompile(true)
-    ```
+
 ## Usage
 
 ### orders to run the code
-mkdir local & cd local & download "demo.tar.gz" in the release part to this folder
-tar -xvf demo.tar.gz
-cd ../scripts
-julia set_config.jl            # set parameters and generate "config.json"
-julia sta_eve.jl
-julia gene_vel0.jl             # generate GIL7 velocity model
-julia gene_obs.jl              # you can run it multiple times with changing veltimes_p&veltimes_s in the "config.json" to find an optimal one
-julia gene_check.jl (optional, generating checkerboard test)
-mkdir ../local/demo/readin_data/inv_P_0.005 ../local/demo/readin_data/inv_P_0.005/intermediate
-(this can help store intermediate results, the name"inv_P_0.005" is base on wave stype and lambda, based on line126-128 in "inversion.jl")
-mpirun --bind-to core -n 16 julia inversion.jl  # adjust the number of cores based on data
+1. mkdir local & cd local & download "demo.tar.gz" in the release part to this folder
+2. tar -xvf demo.tar.gz
+3. cd ../scripts
+4. julia set_config.jl            # set parameters and generate "config.json"
+5. julia sta_eve.jl
+6. julia gene_vel0.jl             # generate GIL7 velocity model
+7. julia gene_obs.jl              # you can run it multiple times with changing veltimes_p&veltimes_s in the "config.json" to find an optimal one
+8. julia gene_check.jl (optional, generating checkerboard test)
+9. mkdir ../local/demo/readin_data/inv_P_0.005 ../local/demo/readin_data/inv_P_0.005/intermediate
+\\ (this can help store intermediate results, the name"inv_P_0.005" is base on wave stype and lambda, based on line126-128 in "inversion.jl")
+10. mpirun --bind-to core -n 16 julia inversion.jl  # adjust the number of cores based on data
 ### get the data of seismic wave picks
 
 In this part, we do not pick arrival time manually and use [Phasenet](https://github.com/AI4EPS/PhaseNet) to get all traveltime data.
