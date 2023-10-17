@@ -54,15 +54,15 @@ config = Dict(
 
 json_str = JSON.json(config, 3)  
 json_str = json_str * "\n"
+if isdir("../local/"*region)
+    folder = "../local/"*region*"readin_data/"
+    if !isdir(folder) mkdir(folder) end 
+    json_file = folder * "config.json"
 
-folder = "../local/"*region*"readin_data/"
-if !isdir(folder) mkdir(folder) end 
-json_file = folder * "config.json"
-
-open(json_file, "w") do io
-    write(io, json_str)
+    open(json_file, "w") do io
+        write(io, json_str)
+    end
 end
-
 
 
 region = "demo/"
