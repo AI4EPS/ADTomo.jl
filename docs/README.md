@@ -46,15 +46,11 @@
         install_openmpi()
         ADCME.precompile(true)
         get_mpirun()
-    ```
+    
     add path
         vi ~/.bashrc
         add " export PATH="$PATH:home/usr/.julia/adcme/bin" " to ~/.bashrc
         source ~/.bashrc
-### install GMT
-    conda create mygmt
-    conda activate mygmt # if cannot work, use $conda init bash first
-    conda install -c conda-forge gmt
 
 ## Usage
 
