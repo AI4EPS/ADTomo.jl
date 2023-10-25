@@ -14,10 +14,6 @@ using Optim
 using LineSearches
 Random.seed!(233)
 
-mpi_init()
-rank = mpi_rank()
-nproc = mpi_size()
-
 region = "demo/"
 folder = "../local/" * region * "readin_data/"
 config = JSON.parsefile("../local/" * region * "readin_data/config.json")["inversion"]
@@ -36,19 +32,11 @@ qua_p = h5read(folder * "for_P/qua_p.h5","matrix")
 uobs_s = h5read(folder * "for_S/uobs_s.h5","matrix")
 qua_s = h5read(folder * "for_S/qua_s.h5","matrix")
 
-allsta = allsta[rank+1:nproc:numsta,:]
-uobs_p = uobs_p[rank+1:nproc:numsta,:]
-qua_p = qua_p[rank+1:nproc:numsta,:]
-uobs_s = uobs_s[rank+1:nproc:numsta,:]
-qua_s = qua_s[rank+1:nproc:numsta,:]
-numsta = size(allsta,1)
-#@show rank, nproc, numsta
-
 var_change = Variable(zero(vel0))
-fvar_ = 2*sigmoid(var_change)-1 + vel0
-fvar = mpi_bcast(fvar_)
-pvs_ = 1.7
-pvs = mpi_bcast(Variable(pvs_))
+fvar = 2*sigmoid(var_change)-1 + vel0
+
+pvs_ = 1.2
+pvs = Variable(pvs_)
 
 uvar_p = PyObject[]; uvar_s = PyObject[]
 for i = 1:numsta
@@ -163,14 +151,8 @@ n_vel = tf.reshape(cvel,(m,n,l))
 #
 loss = sum(sum_loss_time) + config["lambda_p"]*sum(abs(fvar - n_vel))
 sess = Session(); init(sess)
-loss = mpi_sum(loss)
 
-options = Optim.Options(iterations = config["iterations"])
-loc = folder * "joint_"*string(config["lambda_p"])*"/"
-result = ADTomo.mpi_optimize(sess, loss, method="LBFGS", options = options, 
-    loc = loc*"intermediate/", steps = config["steps"])
-if mpi_rank()==0
-    @info [size(result[i]) for i = 1:length(result)]
-    @info [length(result)]
-end
-mpi_finalize()
+BFGS!(sess,loss,10)
+fvar_ = run(sess,fvar)
+pvs_new = run(sess,pvs)
+print(pvs_new)
