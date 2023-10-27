@@ -1,11 +1,12 @@
-push!(LOAD_PATH,"/home/lingxia/ADEikonal.jl/src/")
+push!(LOAD_PATH,"/home/lingxia/ADTomo.jl/src/")
 using ADCME
-using ADEikonal
+using ADTomo
 using PyCall
 using PyPlot
 using LinearAlgebra
 using Serialization
 using DataFrames
+using CSV
 using HDF5
 using Random
 using Optim
@@ -31,7 +32,7 @@ uobs_s = h5read(folder * "/for_S/uobs_s.h5","matrix")
 qua_p = h5read(folder * "/for_P/qua_p.h5","matrix")
 qua_s = h5read(folder * "/for_S/qua_s.h5","matrix")
 
-fvar = Variable(fvel0_p); pvs = Variable(rpvs)
+fvar = fvel0_p + 2*sigmoid(Variable(zero(fvel0_p)))-1; pvs = Variable(rpvs)
 sess = Session(); init(sess)
 uvar_p = PyObject[]; uvar_s = PyObject[]
 for i = 1:numsta
@@ -48,7 +49,7 @@ for i = 1:numsta
     u0[ixd,iyu,izd] = sqrt((ix-ixd)^2+(iy-iyu)^2+(iz-izd)^2)*fvel0_p[ixd,iyu,izd]
     u0[ixd,iyd,izu] = sqrt((ix-ixd)^2+(iy-iyd)^2+(iz-izu)^2)*fvel0_p[ixd,iyd,izu]
     u0[ixd,iyd,izd] = sqrt((ix-ixd)^2+(iy-iyd)^2+(iz-izd)^2)*fvel0_p[ixd,iyd,izd]
-    push!(uvar_p,eikonal3d(u0,fvar,h,m,n,l,1e-3,false))
+    push!(uvar_p,eikonal3d(u0,1 ./ fvar,h,m,n,l,1e-3,false))
 
     u0 = 1000 * ones(m,n,l)
     u0[ixu,iyu,izu] = sqrt((ix-ixu)^2+(iy-iyu)^2+(iz-izu)^2)*fvel0_p[ixu,iyu,izu]*rpvs
@@ -59,7 +60,7 @@ for i = 1:numsta
     u0[ixd,iyu,izd] = sqrt((ix-ixd)^2+(iy-iyu)^2+(iz-izd)^2)*fvel0_p[ixd,iyu,izd]*rpvs
     u0[ixd,iyd,izu] = sqrt((ix-ixd)^2+(iy-iyd)^2+(iz-izu)^2)*fvel0_p[ixd,iyd,izu]*rpvs
     u0[ixd,iyd,izd] = sqrt((ix-ixd)^2+(iy-iyd)^2+(iz-izd)^2)*fvel0_p[ixd,iyd,izd]*rpvs
-    push!(uvar_s,eikonal3d(u0,fvar*pvs,h,m,n,l,1e-3,false))
+    push!(uvar_s,eikonal3d(u0,pvs ./ fvar,h,m,n,l,1e-3,false))
 end
 
 caltime_p = []; caltime_s = []
@@ -118,20 +119,20 @@ for i = 1:numsta
 end
 
 sum_loss_time = PyObject[]; deltt_p = PyObject[]; deltt_s = PyObject[]
-for i = 1:numeve
-    for j = 1:numsta
+for i = 1:numsta
+    for j = 1:numeve
         if uobs_p[i,j] == -1
             continue
         end
-        push!(sum_loss_time, qua_p[i,j]*(uobs_p[i,j]-caltime_p[j][i])^2)
-        push!(deltt_p,uobs_p[i,j]-caltime_p[j][i])
+        push!(sum_loss_time, qua_p[i,j]*(uobs_p[i,j]-caltime_p[i][j])^2)
+        push!(deltt_p,uobs_p[i,j]-caltime_p[i][j])
     end
-    for j = 1:numsta
+    for j = 1:numeve
         if uobs_s[i,j] == -1
             continue
         end
-        push!(sum_loss_time, qua_s[i,j]*(uobs_s[i,j]-caltime_s[j][i])^2)
-        push!(deltt_s,uobs_s[i,j]-caltime_s[j][i])
+        push!(sum_loss_time, qua_s[i,j]*(uobs_s[i,j]-caltime_s[i][j])^2)
+        push!(deltt_s,uobs_s[i,j]-caltime_s[i][j])
     end
 end
 

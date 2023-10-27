@@ -32,11 +32,8 @@ qua_p = h5read(folder * "for_P/qua_p.h5","matrix")
 uobs_s = h5read(folder * "for_S/uobs_s.h5","matrix")
 qua_s = h5read(folder * "for_S/qua_s.h5","matrix")
 
-var_change = Variable(zero(vel0))
-fvar = 2*sigmoid(var_change)-1 + vel0
-
-pvs_ = 1.2
-pvs = Variable(pvs_)
+fvar = 2*sigmoid(Variable(zero(vel0)))-1 + vel0
+pvs_ = 1.2; pvs = Variable(pvs_)
 
 uvar_p = PyObject[]; uvar_s = PyObject[]
 for i = 1:numsta
@@ -101,10 +98,10 @@ for i = 1:numsta
             tx11 = uvar_s[i][x1,y1,z1]; tx12 = uvar_s[i][x1,y1,z2]
             tx21 = uvar_s[i][x1,y2,z1]; tx22 = uvar_s[i][x1,y2,z2]
         else
-            tx11 = (x2-jx)*uvar_p[i][x1,y1,z1] + (jx-x1)*uvar_p[i][x2,y1,z1]
-            tx12 = (x2-jx)*uvar_p[i][x1,y1,z2] + (jx-x1)*uvar_p[i][x2,y1,z2]
-            tx21 = (x2-jx)*uvar_p[i][x1,y2,z1] + (jx-x1)*uvar_p[i][x2,y2,z1]
-            tx22 = (x2-jx)*uvar_p[i][x1,y2,z2] + (jx-x1)*uvar_p[i][x2,y2,z2]
+            tx11 = (x2-jx)*uvar_s[i][x1,y1,z1] + (jx-x1)*uvar_s[i][x2,y1,z1]
+            tx12 = (x2-jx)*uvar_s[i][x1,y1,z2] + (jx-x1)*uvar_s[i][x2,y1,z2]
+            tx21 = (x2-jx)*uvar_s[i][x1,y2,z1] + (jx-x1)*uvar_s[i][x2,y2,z1]
+            tx22 = (x2-jx)*uvar_s[i][x1,y2,z2] + (jx-x1)*uvar_s[i][x2,y2,z2]
         end
         if y1 == y2
             txy1 = tx11; txy2 = tx12
@@ -149,10 +146,10 @@ vel = tf.reshape(o_vel,(1,m+sh1-1,n+sh1-1,l+sv1-1,1))
 cvel = tf.nn.conv3d(vel,filter,strides = (1,1,1,1,1),padding="VALID")
 n_vel = tf.reshape(cvel,(m,n,l))
 #
-loss = sum(sum_loss_time) + config["lambda_p"]*sum(abs(fvar - n_vel))
+loss = sum(sum_loss_time) #+ config["lambda_p"]*sum(abs(fvar - n_vel))
 sess = Session(); init(sess)
 
-BFGS!(sess,loss,10)
+BFGS!(sess,loss)
 fvar_ = run(sess,fvar)
 pvs_new = run(sess,pvs)
 print(pvs_new)
