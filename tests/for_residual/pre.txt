@@ -1,0 +1,13 @@
+awk -F ',' 'NR > 1 {print $4 " " $5}' ../../sta_eve/cluster_new4/allsta.csv > loc_s.txt
+awk -F ',' 'NR > 1 {print $4 " " $5}' ../../sta_eve/cluster_new4/alleve.csv > loc_e.txt
+
+cd GIL7/for_P/residual/
+paste -d ' ' ../../../loc_s.txt sta_ratio_p.txt > for_p.txt
+paste -d ' ' ../../../loc_e0.txt eve_ratio_p.txt > for_P.txt
+paste -d ' ' ../../../loc_e1.txt eve_ratio_p.txt > for_P.txt
+paste -d ' ' ../../../loc_e2.txt eve_ratio_p.txt > for_P.txt
+
+paste -d ' ' ../../../loc_s.txt sta_ratio_s.txt > for_s.txt
+paste -d ' ' ../../../loc_e0.txt eve_ratio_s.txt > for_s.txt
+paste -d ' ' ../../../loc_e1.txt eve_ratio_s.txt > for_s.txt
+paste -d ' ' ../../../loc_e2.txt eve_ratio_s.txt > for_s.txt
