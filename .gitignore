@@ -7,3 +7,4 @@ tests/readin_data_old
 tests/for_residual/BayArea
 tests/post_process
 local/
+julia-*
